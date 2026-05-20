@@ -10,11 +10,30 @@ export default defineConfig({
     electron([
       {
         entry: 'electron/main.js',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['sharp'],
+            },
+          },
+        },
       },
       {
         entry: 'electron/preload.js',
         onstart(options) {
           options.reload()
+        },
+        vite: {
+          build: {
+            lib: false,
+            rollupOptions: {
+              input: 'electron/preload.js',
+              output: {
+                format: 'cjs',
+                entryFileNames: 'preload.cjs',
+              },
+            },
+          },
         },
       },
     ]),
