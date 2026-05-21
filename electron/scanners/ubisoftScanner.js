@@ -4,6 +4,51 @@ import { exec, execSync } from 'node:child_process'
 import { gamesPath } from '../lib/paths.js'
 import { writeGame, removeCoverFiles } from '../lib/gameStore.js'
 
+function getUbisoftGameNameFromState(stateFilePath) {
+  if (!fs.existsSync(stateFilePath)) return null
+  try {
+    const buffer = fs.readFileSync(stateFilePath)
+    const candidates = new Set()
+    for (let i = 0; i < buffer.length; i++) {
+      const len = buffer[i]
+      if (len >= 3 && len <= 100 && i + 1 + len <= buffer.length) {
+        let isPrintable = true
+        const chars = []
+        for (let j = 0; j < len; j++) {
+          const b = buffer[i + 1 + j]
+          if (b < 32 || b > 126) {
+            isPrintable = false
+            break
+          }
+          chars.push(String.fromCharCode(b))
+        }
+        if (isPrintable) {
+          candidates.add(chars.join(''))
+        }
+      }
+    }
+
+    const list = Array.from(candidates).filter(s => {
+      if (s.length === 40 && /^[0-9a-fA-F]+$/.test(s)) return false
+      if (['EULA', 'en-US', 'en-GB'].includes(s)) return false
+      if (s.startsWith('vcredist')) return false
+      return true
+    })
+
+    const withSpaces = list.filter(s => s.includes(' '))
+    if (withSpaces.length > 0) {
+      return withSpaces.reduce((a, b) => b.length > a.length ? b : a)
+    }
+
+    if (list.length > 0) {
+      return list.reduce((a, b) => b.length > a.length ? b : a)
+    }
+  } catch (e) {
+    console.error('[AUTO-SCAN] Error parsing uplay_install.state:', e.message)
+  }
+  return null
+}
+
 export function scanUbisoftLibrary() {
   console.log('[AUTO-SCAN] Scanning Ubisoft library via registry...')
 
@@ -56,22 +101,30 @@ export function scanUbisoftLibrary() {
         for (const entry of entries) {
           if (!entry.id || !entry.installDir) continue
 
-          // Query display name from Windows Uninstall registry
+          // 1. Try to query state file for correct name first (contains precise display name)
           let displayName = ''
-          try {
-            const uninstallOutput = execSync(
-              `reg query "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Uplay Install ${entry.id}" /v DisplayName`,
-              { encoding: 'utf8', windowsHide: true, timeout: 2000 }
-            )
-            const match = uninstallOutput.match(/DisplayName\s+REG_SZ\s+(.+)/)
-            if (match?.[1]) {
-              displayName = match[1].trim()
-            }
-          } catch (e) {
-            // DisplayName query failed or timed out
+          const stateFilePath = path.join(entry.installDir.replace(/[\/\\]+$/, ''), 'uplay_install.state')
+          if (fs.existsSync(stateFilePath)) {
+            displayName = getUbisoftGameNameFromState(stateFilePath) || ''
           }
 
-          // Fallback to directory name if registry DisplayName wasn't found
+          // 2. Query display name from Windows Uninstall registry as second choice
+          if (!displayName) {
+            try {
+              const uninstallOutput = execSync(
+                `reg query "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Uplay Install ${entry.id}" /v DisplayName`,
+                { encoding: 'utf8', windowsHide: true, timeout: 2000 }
+              )
+              const match = uninstallOutput.match(/DisplayName\s+REG_SZ\s+(.+)/)
+              if (match?.[1]) {
+                displayName = match[1].trim()
+              }
+            } catch (e) {
+              // DisplayName query failed or timed out
+            }
+          }
+
+          // 3. Fallback to directory name if all else fails
           if (!displayName) {
             const folderName = path.basename(entry.installDir.replace(/[\/\\]+$/, ''))
             displayName = folderName || `Ubisoft Game ${entry.id}`
@@ -81,6 +134,7 @@ export function scanUbisoftLibrary() {
           foundIds.add(gameId)
           const gameFilePath = path.join(gamesPath, `${gameId}.json`)
 
+          // Check if game json already exists or has mismatching name
           if (!fs.existsSync(gameFilePath)) {
             writeGame(gameId, {
               added: Math.floor(Date.now() / 1000),
@@ -95,6 +149,18 @@ export function scanUbisoftLibrary() {
               version: 1.5
             })
             console.log('[AUTO-SCAN] Added Ubisoft game:', displayName)
+          } else {
+            // Update name in existing file if it changed or needs update
+            try {
+              const existing = JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
+              if (existing.name !== displayName) {
+                existing.name = displayName
+                writeGame(gameId, existing)
+                console.log(`[AUTO-SCAN] Updated Ubisoft game name to: "${displayName}"`)
+              }
+            } catch (e) {
+              console.error('[AUTO-SCAN] Failed to update name for', gameId, e.message)
+            }
           }
         }
 
