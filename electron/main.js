@@ -13,6 +13,7 @@ import { scanSteamLibrary } from './scanners/steamScanner.js'
 import { scanGogLibrary } from './scanners/gogScanner.js'
 import { scanEpicLibrary } from './scanners/epicScanner.js'
 import { scanEaLibrary } from './scanners/eaScanner.js'
+import { scanUbisoftLibrary } from './scanners/ubisoftScanner.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -139,9 +140,10 @@ ipcMain.handle('launch-game', async (event, executable) => {
       // Strip legacy "start " prefix if present
       if (cmd.startsWith('start ')) cmd = cmd.slice(6).trim()
 
-      // Protocol URLs (Steam, GOG Galaxy, Epic, EA) — open via shell
+      // Protocol URLs (Steam, GOG Galaxy, Epic, EA, Ubisoft) — open via shell
       if (cmd.startsWith('steam://') || cmd.startsWith('goggalaxy://') ||
-          cmd.startsWith('com.epicgames.launcher://') || cmd.startsWith('origin2://')) {
+          cmd.startsWith('com.epicgames.launcher://') || cmd.startsWith('origin2://') ||
+          cmd.startsWith('uplay://')) {
         shell.openExternal(cmd).then(() => resolve(true)).catch(reject)
         return
       }
@@ -358,7 +360,7 @@ ipcMain.handle('download-cover-url', async (event, gameId, imageUrl) => {
 
 // ─── Auto Scan ────────────────────────────────────────────────────────────────
 function runAutoScan() {
-  Promise.all([scanSteamLibrary(), scanGogLibrary(), scanEpicLibrary(), scanEaLibrary()])
+  Promise.all([scanSteamLibrary(), scanGogLibrary(), scanEpicLibrary(), scanEaLibrary(), scanUbisoftLibrary()])
     .then(() => {
       console.log('[AUTO-SCAN] Background auto-scan completed.')
       notifyRenderer()
