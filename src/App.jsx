@@ -134,7 +134,6 @@ function sortGames(games, sortBy) {
 }
 
 // ─── GameCard ─────────────────────────────────────────────────────────────────
-const KNOWN_LAUNCHERS = ['steam', 'gog', 'epic', 'ea', 'ubisoft']
 
 const GameCard = ({ game, isHidden, failedCovers, settings, cardFontSize, onLaunch, onEdit, onImageError }) => (
   <motion.div
@@ -583,10 +582,14 @@ const App = () => {
 
         <div style={{ ...styles.sectionHeader, marginTop: '20px' }}>IMPORTED</div>
         <div style={styles.sidebarNav}>
-          {[{ id: 'steam', label: 'Steam' }, { id: 'gog', label: 'GOG' }, { id: 'epic', label: 'Epic Games' }, { id: 'ea', label: 'EA App' }, { id: 'ubisoft', label: 'Ubisoft Connect' }]
-            .filter(l => rawSources.includes(l.id))
-            .map(l => renderSidebarItem(l.id, l.label))}
-          {sources.filter(s => s !== 'all' && s !== 'imported' && !KNOWN_LAUNCHERS.includes(s)).map(s => renderSidebarItem(s, getSourceLabel(s)))}
+          {rawSources
+            .filter(s => s !== 'imported')
+            .sort((a, b) => {
+              const countA = activeGames.filter(g => g.source === a).length
+              const countB = activeGames.filter(g => g.source === b).length
+              return countB - countA
+            })
+            .map(s => renderSidebarItem(s, getSourceLabel(s)))}
         </div>
       </div>
 
