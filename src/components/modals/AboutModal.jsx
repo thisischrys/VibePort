@@ -23,7 +23,7 @@ const AboutModal = ({ accentHex, onClose }) => (
 
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#f8fafc', margin: '0' }}>Cartridges</h2>
-          <div style={{ fontSize: '12px', color: '#a78bfa', fontWeight: '600', marginTop: '4px' }}>v1.5.0 Native</div>
+          <div style={{ fontSize: '12px', color: '#a78bfa', fontWeight: '600', marginTop: '4px' }}>v1.0.0</div>
         </div>
 
         <p style={{ fontSize: '13.5px', color: '#94a3b8', lineHeight: '1.6', margin: '0' }}>
@@ -33,7 +33,7 @@ const AboutModal = ({ accentHex, onClose }) => (
         <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.05)', margin: '8px 0' }} />
 
         <div style={{ fontSize: '11px', color: '#475569', fontWeight: '500' }}>
-          Inspired by GTK4 Cartridges & Libadwaita designs.
+          Inspired by https://codeberg.org/kramo/cartridges
         </div>
       </div>
     </motion.div>

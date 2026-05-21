@@ -18,6 +18,15 @@ import AboutModal from './components/modals/AboutModal.jsx'
 
 // ─── Global CSS Injection ─────────────────────────────────────────────────────
 const GLOBAL_CSS = `
+  * {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  input, textarea, [contenteditable="true"] {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+
   .game-card-hover:hover .play-overlay { opacity: 1 !important; }
   .game-card-hover:hover .play-button-circle { transform: scale(1) !important; }
   .game-card-hover:hover .cover-image { transform: scale(1.04) !important; }
@@ -552,7 +561,6 @@ const App = () => {
             <Sidebar size={16} style={styles.actionIcon} />
           </div>
           <span style={styles.sidebarHeaderText}>Cartridges</span>
-          <span style={styles.badge}>NATIVE</span>
         </div>
 
         <div style={styles.sectionHeader}>LIBRARY</div>
