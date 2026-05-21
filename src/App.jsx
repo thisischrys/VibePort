@@ -828,12 +828,6 @@ const App = () => {
             editingGame={editingGame}
             formName={formName} setFormName={setFormName}
             formExecutable={formExecutable} setFormExecutable={setFormExecutable}
-            sgdbSearchQuery={sgdbSearchQuery} setSgdbSearchQuery={setSgdbSearchQuery}
-            sgdbGames={sgdbGames} sgdbSearching={sgdbSearching}
-            selectedSgdbGame={selectedSgdbGame} setSelectedSgdbGame={setSelectedSgdbGame}
-            sgdbCovers={sgdbCovers} sgdbCoversLoading={sgdbCoversLoading}
-            downloadingCoverId={downloadingCoverId}
-            onSearch={handleSgdbSearch} onSelectGame={handleSgdbSelectGame} onDownloadCover={handleSgdbDownloadCover}
             onSubmit={handleEditGameSubmit} onClose={() => { setShowEditModal(false); resetForm() }}
             onToggleHide={handleToggleHideGame} onDelete={handleDeleteGame}
           />

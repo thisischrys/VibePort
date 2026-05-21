@@ -1,19 +1,12 @@
 import { motion } from 'framer-motion'
 import { Edit3, EyeOff, Trash2, X } from 'lucide-react'
 import { styles } from '../../theme/styles.js'
-import SteamGridDBSearch from '../SteamGridDBSearch.jsx'
 
 const EditGameModal = ({
   accentHex,
   editingGame,
   formName, setFormName,
   formExecutable, setFormExecutable,
-  sgdbSearchQuery, setSgdbSearchQuery,
-  sgdbGames, sgdbSearching,
-  selectedSgdbGame, setSelectedSgdbGame,
-  sgdbCovers, sgdbCoversLoading,
-  downloadingCoverId,
-  onSearch, onSelectGame, onDownloadCover,
   onSubmit, onClose, onToggleHide, onDelete,
 }) => (
   <motion.div
@@ -23,7 +16,7 @@ const EditGameModal = ({
   >
     <motion.div
       initial={{ scale: 0.95, y: 15 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 15 }}
-      style={styles.modalContentLarge}
+      style={{ ...styles.modalContentLarge, width: '460px' }}
       onClick={(e) => e.stopPropagation()}
     >
       <div style={styles.modalHeader}>
@@ -34,7 +27,7 @@ const EditGameModal = ({
         <div style={styles.closeBtn} onClick={onClose}><X size={18} /></div>
       </div>
 
-      <div style={styles.formLayout}>
+      <div style={{ ...styles.formLayout, height: 'auto' }}>
         <form onSubmit={onSubmit} style={styles.formLeft}>
           <div style={styles.formGroup}>
             <label style={styles.formLabel}>Game Title *</label>
@@ -82,16 +75,6 @@ const EditGameModal = ({
             <button type="submit" className="glass-btn glass-btn-active" style={styles.formBtnPri}>Save Changes</button>
           </div>
         </form>
-
-        <SteamGridDBSearch
-          accentHex={accentHex}
-          sgdbSearchQuery={sgdbSearchQuery} setSgdbSearchQuery={setSgdbSearchQuery}
-          sgdbGames={sgdbGames} sgdbSearching={sgdbSearching}
-          selectedSgdbGame={selectedSgdbGame} setSelectedSgdbGame={setSelectedSgdbGame}
-          sgdbCovers={sgdbCovers} sgdbCoversLoading={sgdbCoversLoading}
-          downloadingCoverId={downloadingCoverId}
-          onSearch={onSearch} onSelectGame={onSelectGame} onDownloadCover={onDownloadCover}
-        />
       </div>
     </motion.div>
   </motion.div>
