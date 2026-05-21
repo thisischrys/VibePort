@@ -11,6 +11,14 @@ contextBridge.exposeInMainWorld('api', {
   searchSteamGridDB: (query) => ipcRenderer.invoke('search-steamgriddb', query),
   fetchSteamGridDBCovers: (gameId) => ipcRenderer.invoke('fetch-steamgriddb-covers', gameId),
   downloadCoverUrl: (gameId, url) => ipcRenderer.invoke('download-cover-url', gameId, url),
+  getAccentColor: () => ipcRenderer.invoke('get-accent-color'),
+  onAccentColorChanged: (callback) => {
+    const listener = (event, color) => callback(color)
+    ipcRenderer.on('accent-color-changed', listener)
+    return () => ipcRenderer.removeListener('accent-color-changed', listener)
+  },
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  scanFolder: (folderPath) => ipcRenderer.invoke('scan-folder', folderPath),
   onGamesUpdated: (callback) => {
     const listener = () => callback()
     ipcRenderer.on('games-updated', listener)

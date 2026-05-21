@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { spawn, exec, execSync } from 'node:child_process'
@@ -457,6 +457,201 @@ ipcMain.handle('update-game-status', async (event, gameId, status) => {
   }
 })
 
+ipcMain.handle('get-accent-color', () => {
+  try {
+    if (process.platform === 'win32' && systemPreferences.getAccentColor) {
+      // Returns RRGGBBAA — drop the last two alpha chars to get RRGGBB
+      const raw = systemPreferences.getAccentColor()
+      return raw.length === 8 ? raw.slice(0, 6) : raw
+    }
+    return null
+  } catch (e) {
+    console.error('get-accent-color error:', e)
+    return null
+  }
+})
+
+ipcMain.handle('select-folder', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select Games Folder to Scan'
+    })
+    return result.canceled ? null : result.filePaths[0]
+  } catch (e) {
+    console.error('select-folder error:', e)
+    return null
+  }
+})
+
+ipcMain.handle('scan-folder', async (event, folderPath) => {
+  try {
+    if (!folderPath || !fs.existsSync(folderPath)) {
+      return { success: false, error: 'Invalid folder path' }
+    }
+
+    const gameDirs = fs.readdirSync(folderPath).filter(f => {
+      try {
+        return fs.statSync(path.join(folderPath, f)).isDirectory()
+      } catch {
+        return false
+      }
+    })
+
+    // Load all existing games to avoid duplicate scanning of the folder
+    let existingGames = []
+    if (fs.existsSync(gamesPath)) {
+      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+      for (const file of files) {
+        try {
+          const content = fs.readFileSync(path.join(gamesPath, file), 'utf8')
+          const data = JSON.parse(content)
+          existingGames.push(data)
+        } catch (err) {
+          console.error('Error reading game file during duplicate check:', file, err)
+        }
+      }
+    }
+
+    const ignoredKeywords = [
+      'crash', 'handler', 'reporter', 'unins', 'uninstall', 'setup', 'install',
+      'config', 'tool', 'ea', 'epic', 'gog', 'steam', 'workshop', 'redist',
+      'dependencies', 'dotNetFx', 'vc_redist', 'dxwebsetup', 'physx', 'directx'
+    ]
+
+    function findExecutables(dir, depth = 0) {
+      if (depth > 3) return []
+      let results = []
+      let list
+      try {
+        list = fs.readdirSync(dir)
+      } catch {
+        return []
+      }
+
+      for (const file of list) {
+        const filePath = path.join(dir, file)
+        let stat
+        try {
+          stat = fs.statSync(filePath)
+        } catch {
+          continue
+        }
+
+        if (stat.isDirectory()) {
+          results = results.concat(findExecutables(filePath, depth + 1))
+        } else if (file.toLowerCase().endsWith('.exe')) {
+          results.push({
+            path: filePath,
+            name: file,
+            size: stat.size
+          })
+        }
+      }
+      return results
+    }
+
+    let addedCount = 0
+
+    for (const dirName of gameDirs) {
+      const cleanDirName = dirName.toLowerCase().trim()
+      const targetDirPath = path.join(folderPath, dirName)
+
+      // Duplicate check (compares names and folder paths case-insensitively)
+      const alreadyExists = existingGames.some(g => {
+        if (g.name && g.name.toLowerCase().trim() === cleanDirName) {
+          return true
+        }
+        if (g.executable) {
+          const normalizedExe = g.executable.toLowerCase().replace(/\\/g, '/')
+          const normalizedTargetDir = targetDirPath.toLowerCase().replace(/\\/g, '/')
+          if (normalizedExe === normalizedTargetDir || normalizedExe.startsWith(normalizedTargetDir + '/')) {
+            return true
+          }
+        }
+        return false
+      })
+
+      if (alreadyExists) {
+        console.log(`[SCANNER] Skipping already registered directory: ${dirName}`)
+        continue
+      }
+
+      const allExes = findExecutables(targetDirPath)
+      if (allExes.length === 0) {
+        console.log(`[SCANNER] No executables found in: ${dirName}`)
+        continue
+      }
+
+      // Filter out helper/system exes
+      const candidates = allExes.filter(exe => {
+        const lowerName = exe.name.toLowerCase()
+        return !ignoredKeywords.some(keyword => lowerName.includes(keyword))
+      })
+
+      let selectedExe = null
+
+      if (candidates.length === 1) {
+        selectedExe = candidates[0]
+      } else if (candidates.length > 1) {
+        // Try to find one matching the directory name
+        const cleanDirNameStripped = cleanDirName.replace(/[^a-z0-9]/g, '')
+        const directMatches = candidates.filter(exe => {
+          const cleanExeName = exe.name.toLowerCase().replace('.exe', '').replace(/[^a-z0-9]/g, '')
+          return cleanExeName.includes(cleanDirNameStripped) || cleanDirNameStripped.includes(cleanExeName)
+        })
+
+        if (directMatches.length === 1) {
+          selectedExe = directMatches[0]
+        } else if (directMatches.length > 1) {
+          // Pick the largest direct match
+          selectedExe = directMatches.reduce((max, cur) => cur.size > max.size ? cur : max, directMatches[0])
+        } else {
+          // No direct match, pick the largest executable overall
+          selectedExe = candidates.reduce((max, cur) => cur.size > max.size ? cur : max, candidates[0])
+        }
+      } else {
+        // Fall back to original list and pick largest if all were filtered
+        selectedExe = allExes.reduce((max, cur) => cur.size > max.size ? cur : max, allExes[0])
+      }
+
+      if (selectedExe) {
+        const gameId = `imported_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+        const gameData = {
+          added: Math.floor(Date.now() / 1000),
+          developer: null,
+          executable: selectedExe.path,
+          game_id: gameId,
+          hidden: false,
+          last_played: 0,
+          name: dirName, // Use the directory name as the game title!
+          removed: false,
+          source: 'imported',
+          version: 1.5
+        }
+
+        if (!fs.existsSync(gamesPath)) {
+          fs.mkdirSync(gamesPath, { recursive: true })
+        }
+
+        const gameFilePath = path.join(gamesPath, `${gameId}.json`)
+        fs.writeFileSync(gameFilePath, JSON.stringify(gameData, null, 4), 'utf8')
+        addedCount++
+        console.log(`[SCANNER] Added game: ${dirName} -> ${selectedExe.name}`)
+      }
+    }
+
+    if (mainWindow && addedCount > 0) {
+      mainWindow.webContents.send('games-updated')
+    }
+
+    return { success: true, count: addedCount }
+  } catch (e) {
+    console.error('scan-folder error:', e)
+    return { success: false, error: e.message }
+  }
+})
+
 ipcMain.handle('search-steamgriddb', async (event, query) => {
   try {
     const res = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(query)}`, {
@@ -529,19 +724,28 @@ async function downloadCoverFromUrl(gameId, imageUrl) {
       }
     }
     
-    const targetPath = path.join(coversDir, `${gameId}${ext}`)
+    let targetPath = path.join(coversDir, `${gameId}.webp`)
     const arrayBuffer = await res.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    fs.writeFileSync(targetPath, buffer)
     
-    console.log(`Successfully downloaded cover for ${gameId} to ${targetPath}`)
-    
-    if (ext === '.gif') {
-      try {
-        await sharp(targetPath).metadata()
-      } catch (err) {
-        console.warn(`[GIF VALIDATION] Downloaded GIF ${gameId}${ext} is corrupt: ${err.message}. Repairing...`)
-        await repairGif(targetPath)
+    try {
+      // Compress and resize all covers permanently
+      await sharp(buffer, { animated: true, limitInputPixels: false })
+        .resize({ width: 300, height: 450, fit: 'cover' })
+        .webp({ quality: 80, effort: 4 })
+        .toFile(targetPath)
+    } catch (sharpErr) {
+      console.warn(`[SHARP] Compression failed for ${gameId}, saving original: ${sharpErr.message}`)
+      targetPath = path.join(coversDir, `${gameId}${ext}`)
+      fs.writeFileSync(targetPath, buffer)
+      
+      if (ext === '.gif') {
+        try {
+          await sharp(targetPath).metadata()
+        } catch (err) {
+          console.warn(`[GIF VALIDATION] Downloaded GIF ${gameId}${ext} is corrupt: ${err.message}. Repairing...`)
+          await repairGif(targetPath)
+        }
       }
     }
     
@@ -1272,6 +1476,15 @@ app.whenReady().then(() => {
   createWindow()
 
   setTimeout(runAutoScan, 2000)
+
+  // Push live accent color updates to renderer when user changes Windows theme
+  if (process.platform === 'win32' && systemPreferences.on) {
+    systemPreferences.on('accent-color-changed', (event, newColor) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('accent-color-changed', newColor)
+      }
+    })
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

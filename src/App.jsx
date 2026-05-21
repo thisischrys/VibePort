@@ -5,8 +5,51 @@ import {
   CheckCircle2, AlertCircle, Plus, Eye, EyeOff, Trash2, 
   Edit3, Image as ImageIcon, Check, Loader2, X, Info,
   ArrowUpDown, Menu, ChevronRight, ChevronLeft, Sidebar,
-  Sliders, Download as DownloadIcon
+  Sliders, Download as DownloadIcon, FolderPlus, PlusSquare
 } from 'lucide-react'
+
+// ─── Accent colour palette builder ───────────────────────────────────────────
+// Converts a Windows RRGGBB hex string into a full set of CSS custom properties
+// that replace every hardcoded purple throughout the app.
+function buildAccentPalette(hex) {
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  return {
+    '--accent-r': r,
+    '--accent-g': g,
+    '--accent-b': b,
+    // Full opaque accent (hover text, active icons, badges)
+    '--accent': `rgb(${r},${g},${b})`,
+    // Lighter tint for active highlights
+    '--accent-light': `rgba(${r},${g},${b},0.85)`,
+    // Subtle glow backgrounds (card hover shadow, active nav rows)
+    '--accent-bg-faint': `rgba(${r},${g},${b},0.08)`,
+    '--accent-bg-mid': `rgba(${r},${g},${b},0.12)`,
+    // Borders (buttons, inputs, popovers when active)
+    '--accent-border': `rgba(${r},${g},${b},0.25)`,
+    '--accent-border-strong': `rgba(${r},${g},${b},0.40)`,
+    // Glow (box-shadow)
+    '--accent-glow-faint': `rgba(${r},${g},${b},0.10)`,
+    '--accent-glow-mid': `rgba(${r},${g},${b},0.20)`,
+    '--accent-glow-strong': `rgba(${r},${g},${b},0.35)`,
+    // App background tint — very dark version of the accent color
+    '--bg-deep': `rgb(${Math.round(r * 0.06)},${Math.round(g * 0.05)},${Math.round(b * 0.10)})`,
+    '--bg-mid': `rgba(${Math.round(r * 0.09)},${Math.round(g * 0.07)},${Math.round(b * 0.14)},0.95)`,
+    '--sidebar-bg': `rgba(${Math.round(r * 0.07)},${Math.round(g * 0.06)},${Math.round(b * 0.12)},0.85)`,
+  }
+}
+
+const DEFAULT_ACCENT = 'c084fc' // fallback purple if no Windows accent available
+
+function applyAccentPalette(hex) {
+  const palette = buildAccentPalette(hex || DEFAULT_ACCENT)
+  const root = document.documentElement
+  for (const [key, value] of Object.entries(palette)) {
+    root.style.setProperty(key, value)
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 const CartridgeIcon = ({ size = 20, color = "#c084fc", className = "", style = {} }) => {
   const safeColor = color.replace('#', '');
@@ -87,11 +130,13 @@ const App = () => {
   const [launchingGame, setLaunchingGame] = useState(null)
   const [launchStatus, setLaunchStatus] = useState(null) // 'success' | 'error' | null
   const [failedCovers, setFailedCovers] = useState({})
+  const [accentHex, setAccentHex] = useState(DEFAULT_ACCENT)
 
   // Settings state
   const [settings, setSettings] = useState({
     card_size: 'cozy',
-    show_titles: true
+    show_titles: true,
+    use_windows_accent: true
   })
 
   // Settings Tab and Toasts
@@ -112,9 +157,36 @@ const App = () => {
     }
   }, [activeToast])
 
+  // Apply Windows accent color on mount and listen for live changes
+  useEffect(() => {
+    const applyColor = (hex) => {
+      const isUsingWindows = settings.use_windows_accent !== false
+      const colorToApply = isUsingWindows ? (hex || DEFAULT_ACCENT) : DEFAULT_ACCENT
+      const clean = colorToApply.replace('#', '')
+      setAccentHex(clean)
+      applyAccentPalette(clean)
+    }
+
+    // Initial fetch
+    if (window.api?.getAccentColor) {
+      window.api.getAccentColor().then(applyColor).catch(() => applyColor(DEFAULT_ACCENT))
+    } else {
+      applyColor(DEFAULT_ACCENT)
+    }
+
+    // Live updates (user changes Windows accent in Settings)
+    let unsub
+    if (window.api?.onAccentColorChanged) {
+      unsub = window.api.onAccentColorChanged(applyColor)
+    }
+    return () => { if (unsub) unsub() }
+  }, [settings.use_windows_accent])
+
   // Modals state
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showPlusDropdown, setShowPlusDropdown] = useState(false)
+  const [isScanning, setIsScanning] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingGame, setEditingGame] = useState(null)
 
@@ -239,10 +311,13 @@ const App = () => {
       if (showMenu && !e.target.closest('.gtk-popover-container')) {
         setShowMenu(false)
       }
+      if (showPlusDropdown && !e.target.closest('.plus-dropdown-container')) {
+        setShowPlusDropdown(false)
+      }
     }
     window.addEventListener('click', handleOutsideClick)
     return () => window.removeEventListener('click', handleOutsideClick)
-  }, [showMenu])
+  }, [showMenu, showPlusDropdown])
 
   // Fetch all games
   const fetchGames = async () => {
@@ -456,6 +531,38 @@ const App = () => {
     setShowAddModal(true)
   }
 
+  const handleScanGamesFolder = async () => {
+    setShowPlusDropdown(false)
+    try {
+      const folderPath = await window.api.selectFolder()
+      if (!folderPath) {
+        // Canceled
+        return
+      }
+
+      setIsScanning(true)
+      triggerToast('Scanning selected folder for games...', 'info')
+      
+      const result = await window.api.scanFolder(folderPath)
+      setIsScanning(false)
+      
+      if (result.success) {
+        if (result.count > 0) {
+          triggerToast(`Successfully scanned! Added ${result.count} new games.`, 'success')
+        } else {
+          triggerToast('Scan complete. No new games were found or added.', 'info')
+        }
+        await fetchGames()
+      } else {
+        triggerToast(`Scan failed: ${result.error}`, 'error')
+      }
+    } catch (err) {
+      console.error('Scan error:', err)
+      setIsScanning(false)
+      triggerToast('An error occurred during directory scanning.', 'error')
+    }
+  }
+
   const openEditModal = (game, e) => {
     if (e && e.stopPropagation) e.stopPropagation()
     setEditingGame(game)
@@ -610,7 +717,7 @@ const App = () => {
 
   return (
     <div style={styles.container}>
-      {/* CSS Injection for custom visual polish */}
+      {/* CSS Injection for custom visual polish — all accent colors use CSS vars set by applyAccentPalette() */}
       <style dangerouslySetInnerHTML={{__html: `
         .game-card-hover:hover .play-overlay {
           opacity: 1 !important;
@@ -622,15 +729,29 @@ const App = () => {
           transform: scale(1.04) !important;
         }
         .game-card-hover:hover .game-title {
-          color: #c084fc !important;
+          color: var(--accent) !important;
         }
         .game-card-hover:hover .cover-wrapper {
-          box-shadow: 0 0 30px rgba(139, 92, 246, 0.35) !important;
-          border-color: rgba(192, 132, 252, 0.4) !important;
+          box-shadow: 0 0 30px var(--accent-glow-strong) !important;
+          border-color: var(--accent-border-strong) !important;
         }
         .game-card-hover:hover .edit-overlay-btn {
           opacity: 1 !important;
           transform: scale(1) !important;
+        }
+
+        /* GPU-composited card lift — replaces Framer Motion whileHover for zero JS cost */
+        .game-card-hover {
+          transition: transform 0.18s cubic-bezier(0.25, 0.8, 0.25, 1);
+          will-change: transform;
+          contain: layout style;
+        }
+        .game-card-hover:hover {
+          transform: translateY(-6px);
+        }
+        /* Pre-promote cover wrappers to their own GPU layer */
+        .cover-wrapper {
+          will-change: box-shadow, border-color;
         }
         
         @keyframes spin {
@@ -639,16 +760,16 @@ const App = () => {
         
         .header-action:hover {
           background-color: rgba(255, 255, 255, 0.06) !important;
-          border-color: rgba(192, 132, 252, 0.25) !important;
-          box-shadow: 0 0 15px rgba(167, 139, 250, 0.15) !important;
+          border-color: var(--accent-border) !important;
+          box-shadow: 0 0 15px var(--accent-glow-faint) !important;
         }
         .header-action:hover svg {
-          color: #c084fc !important;
+          color: var(--accent) !important;
         }
         .search-input-focus:focus {
-          border-color: rgba(192, 132, 252, 0.35) !important;
+          border-color: var(--accent-border-strong) !important;
           background-color: rgba(255, 255, 255, 0.05) !important;
-          box-shadow: 0 0 20px rgba(167, 139, 250, 0.15) !important;
+          box-shadow: 0 0 20px var(--accent-glow-faint) !important;
         }
         .gtk-menu-item:hover {
           background-color: rgba(255, 255, 255, 0.05) !important;
@@ -660,7 +781,7 @@ const App = () => {
           color: #f1f5f9 !important;
         }
         .sidebar-nav-item:hover svg {
-          color: #c084fc !important;
+          color: var(--accent) !important;
         }
 
         /* Glassmorphic custom scrollbar styling */
@@ -677,7 +798,7 @@ const App = () => {
           border: 2px solid transparent;
         }
         ::-webkit-scrollbar-thumb:hover {
-          background: rgba(167, 139, 250, 0.2);
+          background: var(--accent-glow-mid);
         }
 
         .glass-btn {
@@ -687,15 +808,15 @@ const App = () => {
           transition: all 0.2s ease;
         }
         .glass-btn:hover {
-          background: rgba(167, 139, 250, 0.08);
-          border-color: rgba(167, 139, 250, 0.25);
+          background: var(--accent-bg-faint);
+          border-color: var(--accent-border);
           color: #f8fafc;
         }
         .glass-btn-active {
-          background: rgba(167, 139, 250, 0.12) !important;
-          border-color: rgba(167, 139, 250, 0.4) !important;
-          color: #c084fc !important;
-          box-shadow: 0 0 15px rgba(167, 139, 250, 0.1);
+          background: var(--accent-bg-mid) !important;
+          border-color: var(--accent-border-strong) !important;
+          color: var(--accent) !important;
+          box-shadow: 0 0 15px var(--accent-glow-faint);
         }
         
         .form-input {
@@ -708,8 +829,8 @@ const App = () => {
           transition: all 0.2s ease;
         }
         .form-input:focus {
-          border-color: rgba(167, 139, 250, 0.35);
-          box-shadow: 0 0 15px rgba(167, 139, 250, 0.1);
+          border-color: var(--accent-border-strong);
+          box-shadow: 0 0 15px var(--accent-glow-faint);
         }
       `}} />
 
@@ -751,9 +872,9 @@ const App = () => {
                 onClick={() => setSelectedSource(src)}
               >
                 {src === 'imported' ? (
-                  <Plus size={18} color={isActive ? '#c084fc' : '#64748b'} strokeWidth={2.5} />
+                  <Plus size={18} color={isActive ? `#${accentHex}` : '#64748b'} strokeWidth={2.5} />
                 ) : (
-                  <LayoutGrid size={16} color={isActive ? '#c084fc' : '#64748b'} />
+                  <LayoutGrid size={16} color={isActive ? `#${accentHex}` : '#64748b'} />
                 )}
                 <span>{getSourceLabel(src)}</span>
                 <span style={{
@@ -789,7 +910,7 @@ const App = () => {
                   }}
                   onClick={() => setSelectedSource(launcher.id)}
                 >
-                  <LayoutGrid size={16} color={isActive ? '#c084fc' : '#64748b'} />
+                  <LayoutGrid size={16} color={isActive ? `#${accentHex}` : '#64748b'} />
                   <span style={{ fontWeight: isActive ? '700' : '500' }}>
                     {launcher.label}
                   </span>
@@ -816,7 +937,7 @@ const App = () => {
                   }}
                   onClick={() => setSelectedSource(src)}
                 >
-                  <LayoutGrid size={16} color={isActive ? '#c084fc' : '#64748b'} />
+                  <LayoutGrid size={16} color={isActive ? `#${accentHex}` : '#64748b'} />
                   <span>{getSourceLabel(src)}</span>
                   <span style={{
                     ...styles.itemCount,
@@ -881,7 +1002,7 @@ const App = () => {
               ) : activeToast.type === 'error' ? (
                 <AlertCircle size={18} color="#f87171" />
               ) : (
-                <Info size={18} color="#c084fc" />
+                <Info size={18} color={`#${accentHex}`} />
               )}
               <span style={styles.toastText}>
                 {activeToast.message}
@@ -908,14 +1029,71 @@ const App = () => {
                   </div>
                 )}
                 
-                {/* Add Custom Game Action */}
-                <div 
-                  className="header-action" 
-                  style={styles.actionIconContainer}
-                  onClick={openAddModal}
-                  title="Add Custom Game"
-                >
-                  <Plus size={18} style={styles.actionIcon} />
+                {/* Plus Menu Action */}
+                <div className="plus-dropdown-container" style={{ position: 'relative' }}>
+                  <div 
+                    className="header-action" 
+                    style={{
+                      ...styles.actionIconContainer,
+                      backgroundColor: showPlusDropdown ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                      borderColor: showPlusDropdown ? 'rgba(192, 132, 252, 0.35)' : 'rgba(255, 255, 255, 0.04)',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowPlusDropdown(prev => !prev);
+                    }}
+                    title="Add Options"
+                  >
+                    {isScanning ? (
+                      <Loader2 size={18} className="animate-spin" style={{ color: `#${accentHex}`, animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Plus size={18} style={{ color: showPlusDropdown ? `#${accentHex}` : '#f8fafc' }} />
+                    )}
+                  </div>
+
+                  {showPlusDropdown && (
+                    <div className="gtk-popover-container" style={styles.popoverLeft}>
+                      {/* Popover triangle/bubble arrow */}
+                      <div style={styles.popoverArrowLeft} />
+                      
+                      <div style={styles.popoverContent}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div 
+                            className="gtk-menu-item" 
+                            style={styles.popoverItem}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAddModal();
+                              setShowPlusDropdown(false);
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ width: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                <PlusSquare size={16} color={`#${accentHex}`} />
+                              </div>
+                              <span>Add Custom Game</span>
+                            </div>
+                          </div>
+
+                          <div 
+                            className="gtk-menu-item" 
+                            style={styles.popoverItem}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleScanGamesFolder();
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ width: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                <FolderPlus size={16} color={`#${accentHex}`} />
+                              </div>
+                              <span>Scan Games Folder</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -936,7 +1114,7 @@ const App = () => {
                   onClick={() => setShowSearch(prev => !prev)}
                   title="Search Games"
                 >
-                  <Search size={18} style={{ color: showSearch ? '#c084fc' : '#cbd5e1' }} />
+                  <Search size={18} style={{ color: showSearch ? `#${accentHex}` : '#cbd5e1' }} />
                 </div>
 
                 {/* Custom Burger Menu Button (GTK4 Style) */}
@@ -955,7 +1133,7 @@ const App = () => {
                     }}
                     title="Main Menu"
                   >
-                    <Menu size={18} style={{ color: showMenu && !showHidden ? '#c084fc' : '#f8fafc' }} />
+                    <Menu size={18} style={{ color: showMenu && !showHidden ? `#${accentHex}` : '#f8fafc' }} />
                   </div>
                   
                   {showMenu && !showHidden && (
@@ -993,7 +1171,7 @@ const App = () => {
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <div style={{ width: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                  {showHidden && <Check size={14} color="#c084fc" strokeWidth={2.5} />}
+                                  {showHidden && <Check size={14} color={`#${accentHex}`} strokeWidth={2.5} />}
                                 </div>
                                 <span>Show Hidden</span>
                               </div>
@@ -1095,7 +1273,7 @@ const App = () => {
                                     ...styles.popoverItem,
                                     justifyContent: 'flex-start',
                                     gap: '10px',
-                                    color: isSelected ? '#c084fc' : '#cbd5e1'
+                                    color: isSelected ? `#${accentHex}` : '#cbd5e1'
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1107,11 +1285,11 @@ const App = () => {
                                     width: '16px',
                                     height: '16px',
                                     borderRadius: '50%',
-                                    border: `1.5px solid ${isSelected ? '#c084fc' : 'rgba(255, 255, 255, 0.2)'}`,
+                                    border: `1.5px solid ${isSelected ? `#${accentHex}` : 'rgba(255, 255, 255, 0.2)'}`,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    backgroundColor: isSelected ? 'rgba(192, 132, 252, 0.1)' : 'transparent',
+                                    backgroundColor: isSelected ? 'var(--accent-bg-faint)' : 'transparent',
                                     transition: 'all 0.15s'
                                   }}>
                                     {isSelected && (
@@ -1119,7 +1297,7 @@ const App = () => {
                                         width: '6px',
                                         height: '6px',
                                         borderRadius: '50%',
-                                        backgroundColor: '#c084fc'
+                                        backgroundColor: `#${accentHex}`
                                       }} />
                                     )}
                                   </div>
@@ -1192,18 +1370,16 @@ const App = () => {
                   <div style={styles.emptyStateSub}>Double check your search text or switch libraries.</div>
                 </div>
               ) : (
-                <motion.div layout style={{ ...styles.grid, gridTemplateColumns: getGridColumns() }}>
-                  <AnimatePresence mode="popLayout">
+                <div style={{ ...styles.grid, gridTemplateColumns: getGridColumns() }}>
+                  <AnimatePresence mode="popLayout" initial={false}>
                     {sortedVisibleGames.map((game) => {
                       return (
                         <motion.div
                           key={game.game_id}
-                          layout
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                          whileHover={{ y: -6 }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
                           className="game-card-hover"
                           style={styles.gameCard}
                           onClick={(e) => handleLaunch(game, e)}
@@ -1245,7 +1421,7 @@ const App = () => {
                             <div style={styles.gameInfo}>
                               <div className="game-title" style={{ ...styles.gameTitle, fontSize: getCardFontSize() }}>{game.name}</div>
                               <div style={styles.gameSourceBadge}>
-                                {game.source === 'steam' ? 'STEAM' : game.source === 'gog' ? 'GOG' : 'LOCAL'}
+                                {['imported', 'manual'].includes(game.source) ? 'ADDED' : game.source?.toUpperCase() || 'LOCAL'}
                               </div>
                             </div>
                           )}
@@ -1253,7 +1429,7 @@ const App = () => {
                       );
                     })}
                   </AnimatePresence>
-                </motion.div>
+                </div>
               )}
             </div>
           </div>
@@ -1290,7 +1466,7 @@ const App = () => {
                   onClick={() => setShowSearch(prev => !prev)}
                   title="Search Games"
                 >
-                  <Search size={18} style={{ color: showSearch ? '#c084fc' : '#cbd5e1' }} />
+                  <Search size={18} style={{ color: showSearch ? `#${accentHex}` : '#cbd5e1' }} />
                 </div>
 
                 {/* Custom Burger Menu Button (GTK4 Style) */}
@@ -1309,7 +1485,7 @@ const App = () => {
                     }}
                     title="Main Menu"
                   >
-                    <Menu size={18} style={{ color: showMenu && showHidden ? '#c084fc' : '#f8fafc' }} />
+                    <Menu size={18} style={{ color: showMenu && showHidden ? `#${accentHex}` : '#f8fafc' }} />
                   </div>
                   
                   {showMenu && showHidden && (
@@ -1347,7 +1523,7 @@ const App = () => {
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <div style={{ width: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                  {showHidden && <Check size={14} color="#c084fc" strokeWidth={2.5} />}
+                                  {showHidden && <Check size={14} color={`#${accentHex}`} strokeWidth={2.5} />}
                                 </div>
                                 <span>Show Hidden</span>
                               </div>
@@ -1449,7 +1625,7 @@ const App = () => {
                                     ...styles.popoverItem,
                                     justifyContent: 'flex-start',
                                     gap: '10px',
-                                    color: isSelected ? '#c084fc' : '#cbd5e1'
+                                    color: isSelected ? `#${accentHex}` : '#cbd5e1'
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1461,11 +1637,11 @@ const App = () => {
                                     width: '16px',
                                     height: '16px',
                                     borderRadius: '50%',
-                                    border: `1.5px solid ${isSelected ? '#c084fc' : 'rgba(255, 255, 255, 0.2)'}`,
+                                    border: `1.5px solid ${isSelected ? `#${accentHex}` : 'rgba(255, 255, 255, 0.2)'}`,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    backgroundColor: isSelected ? 'rgba(192, 132, 252, 0.1)' : 'transparent',
+                                    backgroundColor: isSelected ? 'var(--accent-bg-faint)' : 'transparent',
                                     transition: 'all 0.15s'
                                   }}>
                                     {isSelected && (
@@ -1473,7 +1649,7 @@ const App = () => {
                                         width: '6px',
                                         height: '6px',
                                         borderRadius: '50%',
-                                        backgroundColor: '#c084fc'
+                                        backgroundColor: `#${accentHex}`
                                       }} />
                                     )}
                                   </div>
@@ -1546,18 +1722,16 @@ const App = () => {
                   <div style={styles.emptyStateSub}>Games you hide will appear here</div>
                 </div>
               ) : (
-                <motion.div layout style={{ ...styles.grid, gridTemplateColumns: getGridColumns() }}>
-                  <AnimatePresence mode="popLayout">
+                <div style={{ ...styles.grid, gridTemplateColumns: getGridColumns() }}>
+                  <AnimatePresence mode="popLayout" initial={false}>
                     {sortedHiddenGames.map((game) => {
                       return (
                         <motion.div
                           key={game.game_id}
-                          layout
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                          whileHover={{ y: -6 }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
                           className="game-card-hover"
                           style={{
                             ...styles.gameCard,
@@ -1620,7 +1794,7 @@ const App = () => {
                             <div style={styles.gameInfo}>
                               <div className="game-title" style={{ ...styles.gameTitle, fontSize: getCardFontSize() }}>{game.name}</div>
                               <div style={styles.gameSourceBadge}>
-                                {game.source === 'steam' ? 'STEAM' : game.source === 'gog' ? 'GOG' : 'LOCAL'}
+                                {['imported', 'manual'].includes(game.source) ? 'ADDED' : game.source?.toUpperCase() || 'LOCAL'}
                               </div>
                             </div>
                           )}
@@ -1628,7 +1802,7 @@ const App = () => {
                       );
                     })}
                   </AnimatePresence>
-                </motion.div>
+                </div>
               )}
             </div>
           </div>
@@ -1673,7 +1847,7 @@ const App = () => {
                   ]}
                 ].map(group => (
                   <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ fontSize: '11px', color: '#c084fc', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: '11px', color: `#${accentHex}`, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {group.label}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1726,7 +1900,7 @@ const App = () => {
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                <CartridgeIcon size={64} color="#c084fc" />
+                <CartridgeIcon size={64} color={`#${accentHex}`} />
                 
                 <div>
                   <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#f8fafc', margin: '0' }}>Cartridges</h2>
@@ -1765,7 +1939,7 @@ const App = () => {
             >
               <div style={styles.modalHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Settings size={20} color="#c084fc" />
+                  <Settings size={20} color={`#${accentHex}`} />
                   <h2 style={styles.modalTitle}>Preferences</h2>
                 </div>
                 <div style={styles.closeBtn} onClick={() => setShowSettingsModal(false)}>
@@ -1804,6 +1978,18 @@ const App = () => {
                     {settings.show_titles ? 'Enabled' : 'Disabled'}
                   </button>
                 </div>
+
+                {/* Accent Color Toggle */}
+                <div style={styles.settingsRow}>
+                  <span style={styles.settingsLabel}>Use Windows Accent Color</span>
+                  <button
+                    className={`glass-btn ${settings.use_windows_accent !== false ? 'glass-btn-active' : ''}`}
+                    style={styles.toggleButton}
+                    onClick={() => handleSaveSettingsValue('use_windows_accent', settings.use_windows_accent === false ? true : false)}
+                  >
+                    {settings.use_windows_accent !== false ? 'Enabled' : 'Disabled'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -1827,7 +2013,7 @@ const App = () => {
             >
               <div style={styles.modalHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Plus size={20} color="#c084fc" />
+                  <Plus size={20} color={`#${accentHex}`} />
                   <h2 style={styles.modalTitle}>Add Custom Game</h2>
                 </div>
                 <div style={styles.closeBtn} onClick={() => setShowAddModal(false)}>
@@ -1877,7 +2063,7 @@ const App = () => {
 
                   {formCoverUrl && (
                     <div style={styles.formCoverStatus}>
-                      <ImageIcon size={14} color="#c084fc" />
+                      <ImageIcon size={14} color={`#${accentHex}`} />
                       <span style={{ fontSize: '12px', color: '#cbd5e1' }}>Selected cover from SteamGridDB</span>
                     </div>
                   )}
@@ -1928,7 +2114,7 @@ const App = () => {
                               style={styles.sgdbResultItem}
                               onClick={() => handleSgdbSelectGame(game)}
                             >
-                              <Sparkles size={14} color="#c084fc" style={{ flexShrink: 0 }} />
+                              <Sparkles size={14} color={`#${accentHex}`} style={{ flexShrink: 0 }} />
                               <span style={styles.sgdbResultName}>{game.name}</span>
                             </div>
                           ))}
@@ -2005,7 +2191,7 @@ const App = () => {
             >
               <div style={styles.modalHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Edit3 size={20} color="#c084fc" />
+                  <Edit3 size={20} color={`#${accentHex}`} />
                   <h2 style={styles.modalTitle}>Edit: {editingGame.name}</h2>
                 </div>
                 <div style={styles.closeBtn} onClick={() => setShowEditModal(false)}>
@@ -2128,7 +2314,7 @@ const App = () => {
                               style={styles.sgdbResultItem}
                               onClick={() => handleSgdbSelectGame(game)}
                             >
-                              <Sparkles size={14} color="#c084fc" style={{ flexShrink: 0 }} />
+                              <Sparkles size={14} color={`#${accentHex}`} style={{ flexShrink: 0 }} />
                               <span style={styles.sgdbResultName}>{game.name}</span>
                             </div>
                           ))}
@@ -2200,11 +2386,11 @@ const styles = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
-    background: 'radial-gradient(circle at top right, #17152b 0%, #08070d 80%)',
+    background: 'var(--bg-deep, #08070d)',
   },
   sidebar: {
     width: '260px',
-    backgroundColor: 'rgba(10, 9, 16, 0.82)',
+    backgroundColor: 'var(--sidebar-bg, rgba(10,9,16,0.82))',
     borderRight: '1px solid rgba(255, 255, 255, 0.04)',
     display: 'flex',
     flexDirection: 'column',
@@ -2243,7 +2429,7 @@ const styles = {
   badge: {
     fontSize: '9px',
     fontWeight: '800',
-    backgroundColor: '#8b5cf6',
+    backgroundColor: 'var(--accent, #8b5cf6)',
     color: '#ffffff',
     padding: '2px 6px',
     borderRadius: '99px',
@@ -2278,9 +2464,9 @@ const styles = {
     border: '1px solid transparent',
   },
   activeSidebarItem: {
-    backgroundColor: 'rgba(139, 92, 246, 0.07)',
-    border: '1px solid rgba(139, 92, 246, 0.12)',
-    color: '#c084fc',
+    backgroundColor: 'var(--accent-bg-faint, rgba(139,92,246,0.07))',
+    border: '1px solid var(--accent-border, rgba(139,92,246,0.12))',
+    color: 'var(--accent, #c084fc)',
   },
   itemCount: {
     marginLeft: 'auto',
@@ -2289,7 +2475,7 @@ const styles = {
     fontWeight: '700',
   },
   activeItemCount: {
-    color: '#c084fc',
+    color: 'var(--accent, #c084fc)',
   },
   main: {
     flex: 1,
@@ -2384,6 +2570,32 @@ const styles = {
     position: 'absolute',
     top: '-6px',
     right: '14px',
+    width: '10px',
+    height: '10px',
+    backgroundColor: 'rgba(23, 23, 23, 0.95)',
+    borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    transform: 'rotate(45deg)',
+    zIndex: 999,
+  },
+  popoverLeft: {
+    position: 'absolute',
+    top: '46px',
+    left: '0',
+    width: '230px',
+    backgroundColor: 'rgba(23, 23, 23, 0.95)',
+    backdropFilter: 'blur(24px)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '12px',
+    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6)',
+    zIndex: 1000,
+    overflow: 'visible',
+    padding: '8px',
+  },
+  popoverArrowLeft: {
+    position: 'absolute',
+    top: '-6px',
+    left: '14px',
     width: '10px',
     height: '10px',
     backgroundColor: 'rgba(23, 23, 23, 0.95)',
@@ -2671,7 +2883,7 @@ const styles = {
     height: '14px',
     borderRadius: '50%',
     border: '2px solid rgba(255, 255, 255, 0.1)',
-    borderTopColor: '#c084fc',
+    borderTopColor: 'var(--accent, #c084fc)',
     animation: 'spin 0.8s linear infinite',
   },
   spinnerLarge: {
@@ -2768,7 +2980,7 @@ const styles = {
     fontFamily: "'Outfit', sans-serif",
     fontSize: '14.5px',
     fontWeight: '700',
-    color: '#c084fc',
+    color: 'var(--accent, #c084fc)',
     margin: '0 0 4px 0',
     letterSpacing: '0.5px',
   },
@@ -3051,7 +3263,7 @@ const styles = {
   coverThumbBadge: {
     fontSize: '8px',
     fontWeight: '700',
-    color: '#c084fc',
+    color: 'var(--accent, #c084fc)',
     textShadow: '0 1px 2px rgba(0,0,0,0.8)',
   },
   applyCoverBtn: {
@@ -3061,9 +3273,9 @@ const styles = {
     fontWeight: '700',
     cursor: 'pointer',
     textAlign: 'center',
-    background: 'rgba(167, 139, 250, 0.12)',
-    borderColor: 'rgba(167, 139, 250, 0.35)',
-    color: '#c084fc',
+    background: 'var(--accent-bg-mid, rgba(167,139,250,0.12))',
+    borderColor: 'var(--accent-border-strong, rgba(167,139,250,0.35))',
+    color: 'var(--accent, #c084fc)',
   }
 }
 
