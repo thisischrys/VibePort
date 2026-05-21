@@ -27,7 +27,7 @@ const AboutModal = ({ accentHex, onClose }) => (
         </div>
 
         <p style={{ fontSize: '13.5px', color: '#94a3b8', lineHeight: '1.6', margin: '0' }}>
-          A beautiful, lightweight game launcher that aggregates your Steam, GOG, Epic Games, EA, Ubisoft Connect, and custom libraries into one unified, gorgeous place.
+          A beautiful, lightweight game launcher that aggregates your Steam, GOG, Epic Games, EA App, Ubisoft Connect, and custom libraries into one unified, gorgeous place.
         </p>
 
         <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.05)', margin: '8px 0' }} />

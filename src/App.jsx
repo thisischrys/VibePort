@@ -86,7 +86,7 @@ const getSourceLabel = (src) => {
     steam: 'Steam',
     gog: 'GOG',
     epic: 'Epic Games',
-    ea: 'EA',
+    ea: 'EA App',
     ubisoft: 'Ubisoft Connect'
   }
   return map[src] || src.charAt(0).toUpperCase() + src.slice(1)
@@ -583,7 +583,8 @@ const App = () => {
 
         <div style={{ ...styles.sectionHeader, marginTop: '20px' }}>IMPORTED</div>
         <div style={styles.sidebarNav}>
-          {[{ id: 'steam', label: 'Steam' }, { id: 'gog', label: 'GOG' }, { id: 'epic', label: 'Epic Games' }, { id: 'ea', label: 'EA' }, { id: 'ubisoft', label: 'Ubisoft Connect' }]
+          {[{ id: 'steam', label: 'Steam' }, { id: 'gog', label: 'GOG' }, { id: 'epic', label: 'Epic Games' }, { id: 'ea', label: 'EA App' }, { id: 'ubisoft', label: 'Ubisoft Connect' }]
+            .filter(l => rawSources.includes(l.id))
             .map(l => renderSidebarItem(l.id, l.label))}
           {sources.filter(s => s !== 'all' && s !== 'imported' && !KNOWN_LAUNCHERS.includes(s)).map(s => renderSidebarItem(s, getSourceLabel(s)))}
         </div>
