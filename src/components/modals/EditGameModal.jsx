@@ -8,7 +8,6 @@ const EditGameModal = ({
   editingGame,
   formName, setFormName,
   formExecutable, setFormExecutable,
-  formDeveloper, setFormDeveloper,
   sgdbSearchQuery, setSgdbSearchQuery,
   sgdbGames, sgdbSearching,
   selectedSgdbGame, setSelectedSgdbGame,
@@ -53,13 +52,6 @@ const EditGameModal = ({
             />
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.formLabel}>Developer</label>
-            <input
-              type="text" className="form-input"
-              value={formDeveloper} onChange={(e) => setFormDeveloper(e.target.value)}
-            />
-          </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
             <button
