@@ -21,6 +21,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 let mainWindow = null
+let lastAccentColor = null
 
 // ─── Renderer Notification Helper ────────────────────────────────────────────
 function notifyRenderer() {
@@ -465,10 +466,39 @@ app.whenReady().then(() => {
   setTimeout(runAutoScan, 2000)
 
   // Push live accent color updates to renderer when user changes Windows theme
-  if (process.platform === 'win32' && systemPreferences.on) {
-    systemPreferences.on('accent-color-changed', (event, newColor) => {
-      if (mainWindow) mainWindow.webContents.send('accent-color-changed', newColor)
-    })
+  if (process.platform === 'win32') {
+    if (systemPreferences.getAccentColor) {
+      try {
+        const raw = systemPreferences.getAccentColor()
+        lastAccentColor = raw.length === 8 ? raw.slice(0, 6) : raw
+      } catch (e) {
+        console.error('Failed to get initial accent color:', e)
+      }
+    }
+
+    if (systemPreferences.on) {
+      systemPreferences.on('accent-color-changed', (event, newColor) => {
+        lastAccentColor = newColor
+        if (mainWindow) mainWindow.webContents.send('accent-color-changed', newColor)
+      })
+    }
+
+    // Interval fallback check every 60 seconds
+    setInterval(() => {
+      if (systemPreferences.getAccentColor) {
+        try {
+          const raw = systemPreferences.getAccentColor()
+          const currentAccent = raw.length === 8 ? raw.slice(0, 6) : raw
+          if (currentAccent !== lastAccentColor) {
+            lastAccentColor = currentAccent
+            console.log('[ACCENT-FALLBACK] Theme accent color change detected:', currentAccent)
+            if (mainWindow) mainWindow.webContents.send('accent-color-changed', currentAccent)
+          }
+        } catch (e) {
+          console.error('Failed to poll accent color:', e)
+        }
+      }
+    }, 60000)
   }
 
   app.on('activate', () => {
