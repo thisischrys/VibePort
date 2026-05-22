@@ -22,12 +22,12 @@ const AboutModal = ({ accentHex, onClose }) => (
         <CartridgeIcon size={64} color={`#${accentHex}`} />
 
         <div>
-          <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#f8fafc', margin: '0' }}>Cartridges</h2>
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#f8fafc', margin: '0' }}>Vibeport</h2>
           <div style={{ fontSize: '12px', color: '#a78bfa', fontWeight: '600', marginTop: '4px' }}>v1.0.0</div>
         </div>
 
         <p style={{ fontSize: '13.5px', color: '#94a3b8', lineHeight: '1.6', margin: '0' }}>
-          A beautiful, lightweight game launcher that aggregates your Steam, GOG, Epic Games, EA App, Ubisoft Connect, and custom libraries into one unified, gorgeous place.
+          A beautiful, lightweight game launcher that aggregates your Steam, GOG, Epic Games, EA App, Ubisoft Connect, Battle.net, and custom libraries into one unified, gorgeous place.
         </p>
 
         <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.05)', margin: '8px 0' }} />

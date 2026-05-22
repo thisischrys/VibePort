@@ -1,9 +1,10 @@
 {
-  "name": "cartridges-native",
+  "name": "vibeport",
   "version": "1.0.0",
   "description": "Native Windows Game Launcher",
   "main": "dist-electron/main.js",
   "type": "module",
+  "license": "GPL-3.0-only",
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
@@ -12,6 +13,7 @@
   "dependencies": {
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.344.0",
+    "protobufjs": "^8.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sharp": "^0.34.5"
@@ -25,8 +27,8 @@
     "vite-plugin-electron-renderer": "^0.14.5"
   },
   "build": {
-    "appId": "com.cartridges.native",
-    "productName": "Cartridges",
+    "appId": "com.vibeport.app",
+    "productName": "Vibeport",
     "directories": {
       "output": "dist-app"
     },

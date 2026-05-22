@@ -36,27 +36,64 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
       }
     }
 
-    let targetPath = path.join(coversDir, `${gameId}.webp`)
     const buffer = Buffer.from(await res.arrayBuffer())
+    let targetPath
 
-    try {
-      // Permanently compress and resize to a 300x450 WebP for smooth rendering
-      await sharp(buffer, { animated: true, limitInputPixels: false })
-        .resize({ width: 300, height: 450, fit: 'cover' })
-        .webp({ quality: 80, effort: 4 })
-        .toFile(targetPath)
-    } catch (sharpErr) {
-      console.warn(`[SHARP] Compression failed for ${gameId}, saving original: ${sharpErr.message}`)
-      targetPath = path.join(coversDir, `${gameId}${ext}`)
+    // Detect if the cover is animated (APNG, animated WebP, or animated GIF)
+    let isAnimated = false
+    let animExt = ext
+
+    if (isApng(buffer)) {
+      isAnimated = true
+      animExt = '.png'
+    } else {
+      try {
+        const metadata = await sharp(buffer).metadata()
+        if (metadata.pages && metadata.pages > 1) {
+          isAnimated = true
+          if (metadata.format === 'webp') animExt = '.webp'
+          else if (metadata.format === 'gif') animExt = '.gif'
+          else if (metadata.format === 'png') animExt = '.png'
+        }
+      } catch (err) {
+        // Keep isAnimated as false and fall back to static resizing
+      }
+    }
+
+    if (isAnimated) {
+      console.log(`[COVER-DL] Detected animated cover for ${gameId}. Bypassing sharp compression to preserve animation.`)
+      targetPath = path.join(coversDir, `${gameId}${animExt}`)
       fs.writeFileSync(targetPath, buffer)
 
-      // Validate and repair GIFs that weren't compressible
-      if (ext === '.gif') {
+      if (animExt === '.gif') {
         try {
           await sharp(targetPath).metadata()
         } catch (err) {
           console.warn(`[GIF VALIDATION] Downloaded GIF is corrupt. Repairing...`)
           await repairGif(targetPath)
+        }
+      }
+    } else {
+      targetPath = path.join(coversDir, `${gameId}.webp`)
+      try {
+        // Permanently compress and resize to a 300x450 WebP for smooth rendering
+        await sharp(buffer, { animated: true, limitInputPixels: false })
+          .resize({ width: 300, height: 450, fit: 'cover' })
+          .webp({ quality: 80, effort: 4 })
+          .toFile(targetPath)
+      } catch (sharpErr) {
+        console.warn(`[SHARP] Compression failed for ${gameId}, saving original: ${sharpErr.message}`)
+        targetPath = path.join(coversDir, `${gameId}${ext}`)
+        fs.writeFileSync(targetPath, buffer)
+
+        // Validate and repair GIFs that weren't compressible
+        if (ext === '.gif') {
+          try {
+            await sharp(targetPath).metadata()
+          } catch (err) {
+            console.warn(`[GIF VALIDATION] Downloaded GIF is corrupt. Repairing...`)
+            await repairGif(targetPath)
+          }
         }
       }
     }
@@ -69,4 +106,28 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
     console.error('Failed to download cover:', e)
     return { success: false, error: e.message }
   }
+}
+
+// Helper: Checks if a buffer represents an Animated PNG (APNG)
+function isApng(buffer) {
+  if (buffer.length < 8) return false
+  const pngSig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+  for (let i = 0; i < 8; i++) {
+    if (buffer[i] !== pngSig[i]) return false
+  }
+
+  let pos = 8
+  while (pos < buffer.length - 12) {
+    const length = buffer.readUInt32BE(pos)
+    const type = buffer.toString('ascii', pos + 4, pos + 8)
+    if (type === 'acTL') {
+      return true
+    }
+    if (type === 'IDAT' || type === 'IEND') {
+      break
+    }
+    pos += 12 + length
+    if (length <= 0) break
+  }
+  return false
 }

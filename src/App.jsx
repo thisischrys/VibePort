@@ -15,6 +15,7 @@ import AddGameModal from './components/modals/AddGameModal.jsx'
 import EditGameModal from './components/modals/EditGameModal.jsx'
 import ShortcutsModal from './components/modals/ShortcutsModal.jsx'
 import AboutModal from './components/modals/AboutModal.jsx'
+import { TitleBar } from './components/TitleBar.jsx'
 
 // ─── Global CSS Injection ─────────────────────────────────────────────────────
 const GLOBAL_CSS = `
@@ -75,6 +76,23 @@ const GLOBAL_CSS = `
 
   .form-input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); color: #f8fafc; border-radius: 8px; padding: 10px 12px; outline: none; transition: all 0.2s ease; }
   .form-input:focus { border-color: var(--accent-border-strong); box-shadow: 0 0 15px var(--accent-glow-faint); }
+
+  .window-control-btn {
+    background-color: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    color: #94a3b8 !important;
+    transition: all 0.15s ease !important;
+    outline: none !important;
+  }
+  .window-control-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #f8fafc !important;
+  }
+  .window-control-btn.close:hover {
+    background-color: rgba(239, 68, 68, 0.85) !important;
+    color: #ffffff !important;
+  }
 `
 
 // ─── Source Label Mapping ─────────────────────────────────────────────────────
@@ -87,7 +105,8 @@ const getSourceLabel = (src) => {
     gog: 'GOG',
     epic: 'Epic Games',
     ea: 'EA App',
-    ubisoft: 'Ubisoft Connect'
+    ubisoft: 'Ubisoft Connect',
+    battlenet: 'Battle.net'
   }
   return map[src] || src.charAt(0).toUpperCase() + src.slice(1)
 }
@@ -188,66 +207,6 @@ const GameCard = ({ game, isHidden, failedCovers, settings, cardFontSize, onLaun
   </motion.div>
 )
 
-// ─── Menu Popover ─────────────────────────────────────────────────────────────
-const MenuPopover = ({ accentHex, menuPanel, setMenuPanel, sortBy, setSortBy, showHidden, setShowHidden, setShowSettingsModal, setShowShortcutsModal, setShowAboutModal, setShowMenu }) => (
-  <div className="gtk-popover-container" style={styles.popover}>
-    <div style={styles.popoverArrow} />
-    <div style={styles.popoverContent}>
-      {menuPanel === 'main' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <div className="gtk-menu-item" style={styles.popoverItem} onClick={(e) => { e.stopPropagation(); setMenuPanel('sort') }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '16px' }} /><span>Sort</span>
-            </div>
-            <ChevronRight size={14} color="#94a3b8" />
-          </div>
-          <div className="gtk-menu-item" style={styles.popoverItem} onClick={(e) => { e.stopPropagation(); setShowHidden(p => !p); setShowMenu(false) }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '16px', display: 'flex', justifyContent: 'center' }}>
-                {showHidden && <Check size={14} color={`#${accentHex}`} strokeWidth={2.5} />}
-              </div>
-              <span>Show Hidden</span>
-            </div>
-            <span style={styles.popoverShortcut}>Ctrl+H</span>
-          </div>
-          <div style={styles.popoverSeparator} />
-          <div className="gtk-menu-item" style={styles.popoverItem} onClick={(e) => { e.stopPropagation(); setShowSettingsModal(true); setShowMenu(false) }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '16px' }} /><span>Preferences</span></div>
-            <span style={styles.popoverShortcut}>Ctrl+,</span>
-          </div>
-          <div className="gtk-menu-item" style={styles.popoverItem} onClick={(e) => { e.stopPropagation(); setShowShortcutsModal(true); setShowMenu(false) }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '16px' }} /><span>Keyboard Shortcuts</span></div>
-            <span style={styles.popoverShortcut}>Ctrl+?</span>
-          </div>
-          <div className="gtk-menu-item" style={styles.popoverItem} onClick={(e) => { e.stopPropagation(); setShowAboutModal(true); setShowMenu(false) }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '16px' }} /><span>About Cartridges</span></div>
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <div className="gtk-menu-item" style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '6px', cursor: 'pointer', borderRadius: '6px', gap: '8px', transition: 'all 0.15s' }}
-            onClick={(e) => { e.stopPropagation(); setMenuPanel('main') }}>
-            <ChevronLeft size={16} color="#cbd5e1" style={{ flexShrink: 0 }} />
-            <span style={{ fontWeight: '600', fontSize: '13px', color: '#f8fafc' }}>Sort</span>
-          </div>
-          {SORT_OPTIONS.map(opt => {
-            const isSelected = sortBy === opt.value
-            return (
-              <div key={opt.value} className="gtk-menu-item"
-                style={{ ...styles.popoverItem, justifyContent: 'flex-start', gap: '10px', color: isSelected ? `#${accentHex}` : '#cbd5e1' }}
-                onClick={(e) => { e.stopPropagation(); setSortBy(opt.value); setShowMenu(false) }}>
-                <div style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${isSelected ? `#${accentHex}` : 'rgba(255,255,255,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: isSelected ? 'var(--accent-bg-faint)' : 'transparent', transition: 'all 0.15s' }}>
-                  {isSelected && <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: `#${accentHex}` }} />}
-                </div>
-                <span>{opt.label}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  </div>
-)
 
 // ─── Main App Component ───────────────────────────────────────────────────────
 const App = () => {
@@ -269,10 +228,6 @@ const App = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showAboutModal, setShowAboutModal] = useState(false)
-  const [showPlusDropdown, setShowPlusDropdown] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
-  const [menuPanel, setMenuPanel] = useState('main')
-  const [showSearch, setShowSearch] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
 
   const [editingGame, setEditingGame] = useState(null)
@@ -289,14 +244,14 @@ const App = () => {
   const [sgdbCoversLoading, setSgdbCoversLoading] = useState(false)
   const [downloadingCoverId, setDownloadingCoverId] = useState(null)
 
-  const [sortBy, setSortBy] = useState(() => localStorage.getItem('cartridges_sort_by') || 'alphabetical')
-  const [showHidden, setShowHidden] = useState(() => localStorage.getItem('cartridges_show_hidden') === 'true')
-  const [showSidebar, setShowSidebar] = useState(() => localStorage.getItem('cartridges_show_sidebar') !== 'false')
+  const [sortBy, setSortBy] = useState(() => localStorage.getItem('vibeport_sort_by') || 'alphabetical')
+  const [showHidden, setShowHidden] = useState(() => localStorage.getItem('vibeport_show_hidden') === 'true')
+  const [showSidebar, setShowSidebar] = useState(() => localStorage.getItem('vibeport_show_sidebar') !== 'false')
 
   // ── Persistence ────────────────────────────────────────────────────────────
-  useEffect(() => { localStorage.setItem('cartridges_sort_by', sortBy) }, [sortBy])
-  useEffect(() => { localStorage.setItem('cartridges_show_hidden', showHidden) }, [showHidden])
-  useEffect(() => { localStorage.setItem('cartridges_show_sidebar', showSidebar) }, [showSidebar])
+  useEffect(() => { localStorage.setItem('vibeport_sort_by', sortBy) }, [sortBy])
+  useEffect(() => { localStorage.setItem('vibeport_show_hidden', showHidden) }, [showHidden])
+  useEffect(() => { localStorage.setItem('vibeport_show_sidebar', showSidebar) }, [showSidebar])
 
   // ── Toast ──────────────────────────────────────────────────────────────────
   const triggerToast = (message, type = 'info') => setActiveToast({ message, type })
@@ -339,17 +294,17 @@ const App = () => {
       if (mod && e.key === ',') { e.preventDefault(); setShowSettingsModal(true) }
       if (mod && (e.key === '?' || e.key === '/')) { e.preventDefault(); setShowShortcutsModal(true) }
       if (mod && e.key.toLowerCase() === 'f') {
-        e.preventDefault(); setShowSearch(true)
+        e.preventDefault()
         setTimeout(() => {
-          const el = document.querySelector('input[placeholder="Search library..."]')
+          const el = document.querySelector('input.search-input-focus')
           if (el) { el.focus(); el.select() }
         }, 50)
       }
       if (e.key === 'Escape') {
-        const anyOpen = showMenu || showSettingsModal || showAddModal || showEditModal || showShortcutsModal || showAboutModal || showSearch
+        const anyOpen = showSettingsModal || showAddModal || showEditModal || showShortcutsModal || showAboutModal
         if (anyOpen) {
-          setShowMenu(false); setShowSettingsModal(false); setShowAddModal(false)
-          setShowEditModal(false); setShowShortcutsModal(false); setShowAboutModal(false); setShowSearch(false)
+          setShowSettingsModal(false); setShowAddModal(false)
+          setShowEditModal(false); setShowShortcutsModal(false); setShowAboutModal(false)
         } else if (showHidden) {
           setShowHidden(false)
         }
@@ -357,17 +312,8 @@ const App = () => {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showHidden, showMenu, showSettingsModal, showAddModal, showEditModal, showShortcutsModal, showAboutModal, showSearch])
+  }, [showHidden, showSettingsModal, showAddModal, showEditModal, showShortcutsModal, showAboutModal])
 
-  // ── Outside Click ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const onClickOutside = (e) => {
-      if (showMenu && !e.target.closest('.gtk-popover-container')) setShowMenu(false)
-      if (showPlusDropdown && !e.target.closest('.plus-dropdown-container')) setShowPlusDropdown(false)
-    }
-    window.addEventListener('click', onClickOutside)
-    return () => window.removeEventListener('click', onClickOutside)
-  }, [showMenu, showPlusDropdown])
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
   const fetchGames = async () => {
@@ -427,7 +373,7 @@ const App = () => {
 
   const handleDeleteGame = async (game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
-    if (!confirm(`Are you sure you want to remove "${game.name}" from Cartridges?`)) return
+    if (!confirm(`Are you sure you want to remove "${game.name}" from Vibeport?`)) return
     try {
       await window.api.deleteGame(game.game_id)
       await fetchGames()
@@ -559,280 +505,196 @@ const App = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={styles.container}>
+    <div style={styles.appWrapper}>
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <div style={{ ...styles.sidebar, width: showSidebar ? '260px' : '0px', padding: showSidebar ? '0 0 24px 0' : '0', borderRight: showSidebar ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: showSidebar ? 1 : 0, overflow: 'hidden', transition: 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
-        <div style={styles.sidebarHeader}>
-          <div className="header-action" style={styles.sidebarToggleBtn} onClick={() => setShowSidebar(false)} title="Hide Sidebar">
-            <Sidebar size={16} style={styles.actionIcon} />
+      {/* ── Custom Titlebar ── */}
+      <TitleBar
+        accentHex={accentHex}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedSource={selectedSource}
+        showSidebar={showSidebar}
+        setShowSidebar={setShowSidebar}
+        showHidden={showHidden}
+        setShowHidden={setShowHidden}
+        isScanning={isScanning}
+        handleScanGamesFolder={handleScanGamesFolder}
+        openAddModal={openAddModal}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        setShowSettingsModal={setShowSettingsModal}
+        setShowShortcutsModal={setShowShortcutsModal}
+        setShowAboutModal={setShowAboutModal}
+      />
+
+      <div style={styles.container}>
+        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+        <div style={{ ...styles.sidebar, width: showSidebar ? '260px' : '0px', padding: showSidebar ? '0 0 24px 0' : '0', borderRight: showSidebar ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: showSidebar ? 1 : 0, overflow: 'hidden', transition: 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
+          <div style={styles.sidebarHeader}>
+            <div className="header-action" style={styles.sidebarToggleBtn} onClick={() => setShowSidebar(false)} title="Hide Sidebar">
+              <Sidebar size={16} style={styles.actionIcon} />
+            </div>
+            <span style={styles.sidebarHeaderText}>Vibeport</span>
           </div>
-          <span style={styles.sidebarHeaderText}>Cartridges</span>
+
+          <div style={styles.sectionHeader}>LIBRARY</div>
+          <div style={styles.sidebarNav}>
+            {['all', 'imported'].filter(s => sources.includes(s)).map(s =>
+              renderSidebarItem(s, getSourceLabel(s), s === 'imported'
+                ? <Plus size={18} color={selectedSource === s ? `#${accentHex}` : '#64748b'} strokeWidth={2.5} />
+                : null)
+            )}
+          </div>
+
+          <div style={{ ...styles.sectionHeader, marginTop: '20px' }}>IMPORTED</div>
+          <div style={styles.sidebarNav}>
+            {rawSources
+              .filter(s => s !== 'imported')
+              .sort((a, b) => {
+                const countA = activeGames.filter(g => g.source === a).length
+                const countB = activeGames.filter(g => g.source === b).length
+                return countB - countA
+              })
+              .map(s => renderSidebarItem(s, getSourceLabel(s)))}
+          </div>
         </div>
 
-        <div style={styles.sectionHeader}>LIBRARY</div>
-        <div style={styles.sidebarNav}>
-          {['all', 'imported'].filter(s => sources.includes(s)).map(s =>
-            renderSidebarItem(s, getSourceLabel(s), s === 'imported'
-              ? <Plus size={18} color={selectedSource === s ? `#${accentHex}` : '#64748b'} strokeWidth={2.5} />
-              : null)
-          )}
-        </div>
+        {/* ── Main Content ────────────────────────────────────────────────── */}
+        <div style={styles.main}>
+          {/* Launch Toast */}
+          <AnimatePresence>
+            {launchingGame && (
+              <motion.div
+                initial={{ opacity: 0, y: -50, scale: 0.9, x: '-50%' }}
+                animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+                exit={{ opacity: 0, y: -20, scale: 0.95, x: '-50%' }}
+                style={{ ...styles.toast, ...(launchStatus === 'error' ? styles.toastError : launchStatus === 'success' ? styles.toastSuccess : {}) }}
+              >
+                {launchStatus === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
+                  : launchStatus === 'error' ? <AlertCircle size={18} color="#f87171" />
+                  : <div style={styles.spinner} />}
+                <span style={styles.toastText}>
+                  {launchStatus === 'success' ? `Started ${launchingGame} successfully!`
+                    : launchStatus === 'error' ? `Failed to launch ${launchingGame}`
+                    : `Launching ${launchingGame}...`}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <div style={{ ...styles.sectionHeader, marginTop: '20px' }}>IMPORTED</div>
-        <div style={styles.sidebarNav}>
-          {rawSources
-            .filter(s => s !== 'imported')
-            .sort((a, b) => {
-              const countA = activeGames.filter(g => g.source === a).length
-              const countB = activeGames.filter(g => g.source === b).length
-              return countB - countA
-            })
-            .map(s => renderSidebarItem(s, getSourceLabel(s)))}
-        </div>
-      </div>
+          {/* General Toast */}
+          <AnimatePresence>
+            {activeToast && (
+              <motion.div
+                initial={{ opacity: 0, y: -50, scale: 0.9, x: '-50%' }}
+                animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+                exit={{ opacity: 0, y: -20, scale: 0.95, x: '-50%' }}
+                style={{ ...styles.toast, top: launchingGame ? '80px' : '20px', ...(activeToast.type === 'error' ? styles.toastError : activeToast.type === 'success' ? styles.toastSuccess : {}) }}
+              >
+                {activeToast.type === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
+                  : activeToast.type === 'error' ? <AlertCircle size={18} color="#f87171" />
+                  : <Info size={18} color={`#${accentHex}`} />}
+                <span style={styles.toastText}>{activeToast.message}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {/* ── Main Content ────────────────────────────────────────────────── */}
-      <div style={styles.main}>
-        {/* Launch Toast */}
-        <AnimatePresence>
-          {launchingGame && (
-            <motion.div
-              initial={{ opacity: 0, y: -50, scale: 0.9, x: '-50%' }}
-              animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-              exit={{ opacity: 0, y: -20, scale: 0.95, x: '-50%' }}
-              style={{ ...styles.toast, ...(launchStatus === 'error' ? styles.toastError : launchStatus === 'success' ? styles.toastSuccess : {}) }}
-            >
-              {launchStatus === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
-                : launchStatus === 'error' ? <AlertCircle size={18} color="#f87171" />
-                : <div style={styles.spinner} />}
-              <span style={styles.toastText}>
-                {launchStatus === 'success' ? `Started ${launchingGame} successfully!`
-                  : launchStatus === 'error' ? `Failed to launch ${launchingGame}`
-                  : `Launching ${launchingGame}...`}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Horizontal Slide Wrapper (Library / Hidden) */}
+          <div style={{ ...styles.mainSlider, transform: showHidden ? 'translateX(-50%)' : 'translateX(0)' }}>
 
-        {/* General Toast */}
-        <AnimatePresence>
-          {activeToast && (
-            <motion.div
-              initial={{ opacity: 0, y: -50, scale: 0.9, x: '-50%' }}
-              animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-              exit={{ opacity: 0, y: -20, scale: 0.95, x: '-50%' }}
-              style={{ ...styles.toast, top: launchingGame ? '80px' : '20px', ...(activeToast.type === 'error' ? styles.toastError : activeToast.type === 'success' ? styles.toastSuccess : {}) }}
-            >
-              {activeToast.type === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
-                : activeToast.type === 'error' ? <AlertCircle size={18} color="#f87171" />
-                : <Info size={18} color={`#${accentHex}`} />}
-              <span style={styles.toastText}>{activeToast.message}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Horizontal Slide Wrapper (Library / Hidden) */}
-        <div style={{ ...styles.mainSlider, transform: showHidden ? 'translateX(-50%)' : 'translateX(0)' }}>
-
-          {/* ── PANEL 1: Library ──────────────────────────────────────── */}
-          <div style={styles.mainPanel}>
-            <div style={styles.header}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                {!showSidebar && (
-                  <div className="header-action" style={{ ...styles.actionIconContainer, marginRight: '8px' }} onClick={() => setShowSidebar(true)} title="Show Sidebar">
-                    <Sidebar size={18} style={styles.actionIcon} />
+            {/* ── PANEL 1: Library ──────────────────────────────────────── */}
+            <div style={styles.mainPanel}>
+              <div style={styles.gridContainer}>
+                {!loading && sortedVisibleGames.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '24px', paddingLeft: '4px' }}>
+                    <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '28px', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.5px' }}>
+                      {getSourceLabel(selectedSource)}
+                    </h1>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent)', backgroundColor: 'var(--accent-bg-faint)', border: '1px solid var(--accent-border)', padding: '2px 8px', borderRadius: '20px' }}>
+                      {sortedVisibleGames.length} {sortedVisibleGames.length === 1 ? 'game' : 'games'}
+                    </span>
                   </div>
                 )}
-                {/* Add game dropdown */}
-                <div className="plus-dropdown-container" style={{ position: 'relative' }}>
-                  <div className="header-action" style={{ ...styles.actionIconContainer, backgroundColor: showPlusDropdown ? 'rgba(255,255,255,0.08)' : 'transparent', borderColor: showPlusDropdown ? 'rgba(192,132,252,0.35)' : 'rgba(255,255,255,0.04)' }}
-                    onClick={(e) => { e.stopPropagation(); setShowPlusDropdown(p => !p) }} title="Add Options">
-                    {isScanning
-                      ? <Loader2 size={18} style={{ color: `#${accentHex}`, animation: 'spin 1s linear infinite' }} />
-                      : <Plus size={18} style={{ color: showPlusDropdown ? `#${accentHex}` : '#f8fafc' }} />}
-                  </div>
-                  {showPlusDropdown && (
-                    <div className="gtk-popover-container" style={styles.popoverLeft}>
-                      <div style={styles.popoverArrowLeft} />
-                      <div style={styles.popoverContent}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <div className="gtk-menu-item" style={styles.popoverItem} onClick={(e) => { e.stopPropagation(); openAddModal(); setShowPlusDropdown(false) }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{ width: 16, display: 'flex', justifyContent: 'center' }}><PlusSquare size={16} color={`#${accentHex}`} /></div>
-                              <span>Add Custom Game</span>
-                            </div>
-                          </div>
-                          <div className="gtk-menu-item" style={styles.popoverItem} onClick={(e) => { e.stopPropagation(); handleScanGamesFolder() }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{ width: 16, display: 'flex', justifyContent: 'center' }}><FolderPlus size={16} color={`#${accentHex}`} /></div>
-                              <span>Scan Games Folder</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              <div style={styles.mainHeaderTitle}>{getSourceLabel(selectedSource)}</div>
-
-              <div style={styles.headerActions}>
-                <div className="header-action" style={{ ...styles.actionIconContainer, backgroundColor: showSearch ? 'rgba(255,255,255,0.08)' : 'transparent', borderColor: showSearch ? 'rgba(192,132,252,0.35)' : 'rgba(255,255,255,0.04)' }}
-                  onClick={() => setShowSearch(p => !p)} title="Search Games">
-                  <Search size={18} style={{ color: showSearch ? `#${accentHex}` : '#cbd5e1' }} />
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <div className="header-action gtk-popover-container" style={{ ...styles.actionIconContainer, backgroundColor: showMenu && !showHidden ? 'rgba(255,255,255,0.08)' : 'transparent', borderColor: showMenu && !showHidden ? 'rgba(192,132,252,0.35)' : 'rgba(255,255,255,0.04)' }}
-                    onClick={(e) => { e.stopPropagation(); setShowMenu(p => !p); setMenuPanel('main') }} title="Main Menu">
-                    <Menu size={18} style={{ color: showMenu && !showHidden ? `#${accentHex}` : '#f8fafc' }} />
+                {loading ? (
+                  <div style={styles.loadingContainer}><div style={styles.spinnerLarge} /><div style={styles.loadingText}>Syncing game libraries...</div></div>
+                ) : sortedVisibleGames.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <CartridgeIcon size={48} color="#334155" style={{ marginBottom: '12px' }} />
+                    <div style={styles.emptyStateTitle}>No games match your criteria</div>
+                    <div style={styles.emptyStateSub}>Double check your search text or switch libraries.</div>
                   </div>
-                  {showMenu && !showHidden && (
-                    <MenuPopover accentHex={accentHex} menuPanel={menuPanel} setMenuPanel={setMenuPanel}
-                      sortBy={sortBy} setSortBy={setSortBy} showHidden={showHidden} setShowHidden={setShowHidden}
-                      setShowSettingsModal={setShowSettingsModal} setShowShortcutsModal={setShowShortcutsModal}
-                      setShowAboutModal={setShowAboutModal} setShowMenu={setShowMenu} />
-                  )}
-                </div>
+                ) : (
+                  <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {sortedVisibleGames.map(game => <GameCard key={game.game_id} game={game} isHidden={false} {...commonCardProps} />)}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
             </div>
 
-            <AnimatePresence>
-              {showSearch && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: '48px', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} style={styles.searchBarRow}>
-                  <div style={styles.searchBarInner}>
-                    <Search size={16} color="#cbd5e1" style={{ marginRight: '8px', flexShrink: 0 }} />
-                    <input type="text" placeholder="Search library..." className="search-input-focus" style={styles.searchBarInput}
-                      value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} autoFocus />
-                    {searchTerm && (
-                      <div onClick={() => setSearchTerm('')} style={{ cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px', userSelect: 'none' }}>
-                        <X size={14} />
-                      </div>
-                    )}
+            {/* ── PANEL 2: Hidden Games ─────────────────────────────────── */}
+            <div style={styles.mainPanel}>
+              <div style={styles.gridContainer}>
+                {!loading && sortedHiddenGames.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '24px', paddingLeft: '4px' }}>
+                    <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '28px', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.5px' }}>
+                      Hidden Games
+                    </h1>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent)', backgroundColor: 'var(--accent-bg-faint)', border: '1px solid var(--accent-border)', padding: '2px 8px', borderRadius: '20px' }}>
+                      {sortedHiddenGames.length} {sortedHiddenGames.length === 1 ? 'game' : 'games'}
+                    </span>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )}
 
-            <div style={styles.gridContainer}>
-              {loading ? (
-                <div style={styles.loadingContainer}><div style={styles.spinnerLarge} /><div style={styles.loadingText}>Syncing game libraries...</div></div>
-              ) : sortedVisibleGames.length === 0 ? (
-                <div style={styles.emptyState}>
-                  <CartridgeIcon size={48} color="#334155" style={{ marginBottom: '12px' }} />
-                  <div style={styles.emptyStateTitle}>No games match your criteria</div>
-                  <div style={styles.emptyStateSub}>Double check your search text or switch libraries.</div>
-                </div>
-              ) : (
-                <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    {sortedVisibleGames.map(game => <GameCard key={game.game_id} game={game} isHidden={false} {...commonCardProps} />)}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── PANEL 2: Hidden Games ─────────────────────────────────── */}
-          <div style={styles.mainPanel}>
-            <div style={styles.header}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div className="header-action" style={{ ...styles.actionIconContainer, marginRight: '8px' }} onClick={() => setShowHidden(false)} title="Back to Library">
-                  <ChevronLeft size={18} style={styles.actionIcon} />
-                </div>
+                {loading ? (
+                  <div style={styles.loadingContainer}><div style={styles.spinnerLarge} /><div style={styles.loadingText}>Syncing game libraries...</div></div>
+                ) : sortedHiddenGames.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <EyeOff size={48} color="#334155" style={{ marginBottom: '12px' }} />
+                    <div style={styles.emptyStateTitle}>No Hidden Games</div>
+                    <div style={styles.emptyStateSub}>Games you hide will appear here</div>
+                  </div>
+                ) : (
+                  <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {sortedHiddenGames.map(game => <GameCard key={game.game_id} game={game} isHidden={true} {...commonCardProps} />)}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
-              <div style={styles.mainHeaderTitle}>Hidden Games</div>
-              <div style={styles.headerActions}>
-                <div className="header-action" style={{ ...styles.actionIconContainer, backgroundColor: showSearch ? 'rgba(255,255,255,0.08)' : 'transparent', borderColor: showSearch ? 'rgba(192,132,252,0.35)' : 'rgba(255,255,255,0.04)' }}
-                  onClick={() => setShowSearch(p => !p)} title="Search Games">
-                  <Search size={18} style={{ color: showSearch ? `#${accentHex}` : '#cbd5e1' }} />
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <div className="header-action gtk-popover-container" style={{ ...styles.actionIconContainer, backgroundColor: showMenu && showHidden ? 'rgba(255,255,255,0.08)' : 'transparent', borderColor: showMenu && showHidden ? 'rgba(192,132,252,0.35)' : 'rgba(255,255,255,0.04)' }}
-                    onClick={(e) => { e.stopPropagation(); setShowMenu(p => !p); setMenuPanel('main') }} title="Main Menu">
-                    <Menu size={18} style={{ color: showMenu && showHidden ? `#${accentHex}` : '#f8fafc' }} />
-                  </div>
-                  {showMenu && showHidden && (
-                    <MenuPopover accentHex={accentHex} menuPanel={menuPanel} setMenuPanel={setMenuPanel}
-                      sortBy={sortBy} setSortBy={setSortBy} showHidden={showHidden} setShowHidden={setShowHidden}
-                      setShowSettingsModal={setShowSettingsModal} setShowShortcutsModal={setShowShortcutsModal}
-                      setShowAboutModal={setShowAboutModal} setShowMenu={setShowMenu} />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <AnimatePresence>
-              {showSearch && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: '48px', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} style={styles.searchBarRow}>
-                  <div style={styles.searchBarInner}>
-                    <Search size={16} color="#cbd5e1" style={{ marginRight: '8px', flexShrink: 0 }} />
-                    <input type="text" placeholder="Search library..." className="search-input-focus" style={styles.searchBarInput}
-                      value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} autoFocus />
-                    {searchTerm && (
-                      <div onClick={() => setSearchTerm('')} style={{ cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px', userSelect: 'none' }}>
-                        <X size={14} />
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div style={styles.gridContainer}>
-              {loading ? (
-                <div style={styles.loadingContainer}><div style={styles.spinnerLarge} /><div style={styles.loadingText}>Syncing game libraries...</div></div>
-              ) : sortedHiddenGames.length === 0 ? (
-                <div style={styles.emptyState}>
-                  <EyeOff size={48} color="#334155" style={{ marginBottom: '12px' }} />
-                  <div style={styles.emptyStateTitle}>No Hidden Games</div>
-                  <div style={styles.emptyStateSub}>Games you hide will appear here</div>
-                </div>
-              ) : (
-                <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    {sortedHiddenGames.map(game => <GameCard key={game.game_id} game={game} isHidden={true} {...commonCardProps} />)}
-                  </AnimatePresence>
-                </div>
-              )}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Modals ──────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showShortcutsModal && <ShortcutsModal accentHex={accentHex} onClose={() => setShowShortcutsModal(false)} />}
-        {showAboutModal && <AboutModal accentHex={accentHex} onClose={() => setShowAboutModal(false)} />}
-        {showSettingsModal && <SettingsModal accentHex={accentHex} settings={settings} onClose={() => setShowSettingsModal(false)} onSaveSetting={handleSaveSettingsValue} />}
-        {showAddModal && (
-          <AddGameModal
-            accentHex={accentHex}
-            formName={formName} setFormName={setFormName}
-            formExecutable={formExecutable} setFormExecutable={setFormExecutable}
-            formDeveloper={formDeveloper} setFormDeveloper={setFormDeveloper}
-            formCoverUrl={formCoverUrl}
-            sgdbSearchQuery={sgdbSearchQuery} setSgdbSearchQuery={setSgdbSearchQuery}
-            sgdbGames={sgdbGames} sgdbSearching={sgdbSearching}
-            selectedSgdbGame={selectedSgdbGame} setSelectedSgdbGame={setSelectedSgdbGame}
-            sgdbCovers={sgdbCovers} sgdbCoversLoading={sgdbCoversLoading}
-            onSearch={handleSgdbSearch} onSelectGame={handleSgdbSelectGame} onDownloadCover={handleSgdbDownloadCover}
-            onSubmit={handleAddGameSubmit} onClose={() => { setShowAddModal(false); resetForm() }}
-          />
-        )}
-        {showEditModal && editingGame && (
-          <EditGameModal
-            accentHex={accentHex}
-            editingGame={editingGame}
-            formName={formName} setFormName={setFormName}
-            formExecutable={formExecutable} setFormExecutable={setFormExecutable}
-            onSubmit={handleEditGameSubmit} onClose={() => { setShowEditModal(false); resetForm() }}
-            onToggleHide={handleToggleHideGame} onDelete={handleDeleteGame}
-          />
-        )}
-      </AnimatePresence>
+        {/* ── Modals ──────────────────────────────────────────────────────── */}
+        <AnimatePresence>
+          {showShortcutsModal && <ShortcutsModal accentHex={accentHex} onClose={() => setShowShortcutsModal(false)} />}
+          {showAboutModal && <AboutModal accentHex={accentHex} onClose={() => setShowAboutModal(false)} />}
+          {showSettingsModal && <SettingsModal accentHex={accentHex} settings={settings} onClose={() => setShowSettingsModal(false)} onSaveSetting={handleSaveSettingsValue} />}
+          {showAddModal && (
+            <AddGameModal
+              accentHex={accentHex}
+              formName={formName} setFormName={setFormName}
+              formExecutable={formExecutable} setFormExecutable={setFormExecutable}
+              onSubmit={handleAddGameSubmit}
+              onClose={() => { setShowAddModal(false); resetForm() }}
+            />
+          )}
+          {showEditModal && editingGame && (
+            <EditGameModal
+              accentHex={accentHex}
+              editingGame={editingGame}
+              formName={formName} setFormName={setFormName}
+              formExecutable={formExecutable} setFormExecutable={setFormExecutable}
+              onSubmit={handleEditGameSubmit} onClose={() => { setShowEditModal(false); resetForm() }}
+              onToggleHide={handleToggleHideGame} onDelete={handleDeleteGame}
+            />
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }

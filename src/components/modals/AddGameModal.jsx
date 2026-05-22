@@ -1,19 +1,11 @@
 import { motion } from 'framer-motion'
-import { Plus, X, Image as ImageIcon } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { styles } from '../../theme/styles.js'
-import SteamGridDBSearch from '../SteamGridDBSearch.jsx'
 
 const AddGameModal = ({
   accentHex,
   formName, setFormName,
   formExecutable, setFormExecutable,
-  formDeveloper, setFormDeveloper,
-  formCoverUrl,
-  sgdbSearchQuery, setSgdbSearchQuery,
-  sgdbGames, sgdbSearching,
-  selectedSgdbGame, setSelectedSgdbGame,
-  sgdbCovers, sgdbCoversLoading,
-  onSearch, onSelectGame, onDownloadCover,
   onSubmit, onClose,
 }) => (
   <motion.div
@@ -23,7 +15,7 @@ const AddGameModal = ({
   >
     <motion.div
       initial={{ scale: 0.95, y: 15 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 15 }}
-      style={styles.modalContentLarge}
+      style={{ ...styles.modalContentLarge, width: '460px' }}
       onClick={(e) => e.stopPropagation()}
     >
       <div style={styles.modalHeader}>
@@ -34,7 +26,7 @@ const AddGameModal = ({
         <div style={styles.closeBtn} onClick={onClose}><X size={18} /></div>
       </div>
 
-      <div style={styles.formLayout}>
+      <div style={{ ...styles.formLayout, height: 'auto' }}>
         <form onSubmit={onSubmit} style={styles.formLeft}>
           <div style={styles.formGroup}>
             <label style={styles.formLabel}>Game Title *</label>
@@ -52,36 +44,11 @@ const AddGameModal = ({
             />
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.formLabel}>Developer</label>
-            <input
-              type="text" className="form-input" placeholder="e.g. Supergiant Games"
-              value={formDeveloper} onChange={(e) => setFormDeveloper(e.target.value)}
-            />
-          </div>
-
-          {formCoverUrl && (
-            <div style={styles.formCoverStatus}>
-              <ImageIcon size={14} color={`#${accentHex}`} />
-              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>Selected cover from SteamGridDB</span>
-            </div>
-          )}
-
           <div style={styles.formActions}>
             <button type="button" className="glass-btn" style={styles.formBtnSec} onClick={onClose}>Cancel</button>
             <button type="submit" className="glass-btn glass-btn-active" style={styles.formBtnPri}>Save Game</button>
           </div>
         </form>
-
-        <SteamGridDBSearch
-          accentHex={accentHex}
-          sgdbSearchQuery={sgdbSearchQuery} setSgdbSearchQuery={setSgdbSearchQuery}
-          sgdbGames={sgdbGames} sgdbSearching={sgdbSearching}
-          selectedSgdbGame={selectedSgdbGame} setSelectedSgdbGame={setSelectedSgdbGame}
-          sgdbCovers={sgdbCovers} sgdbCoversLoading={sgdbCoversLoading}
-          downloadingCoverId={null}
-          onSearch={onSearch} onSelectGame={onSelectGame} onDownloadCover={onDownloadCover}
-        />
       </div>
     </motion.div>
   </motion.div>

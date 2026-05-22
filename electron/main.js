@@ -4,16 +4,17 @@ import fs from 'node:fs'
 import { spawn } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { gamesPath, coversDir, settingsPath, cartridgesDir, STEAMGRIDDB_API_KEY } from './lib/paths.js'
+import { gamesPath, coversDir, settingsPath, vibeportDir, STEAMGRIDDB_API_KEY } from './lib/paths.js'
 import { getSettingsData, saveSettingsData } from './lib/settings.js'
 import { loadAllGames, writeGame, removeCoverFiles } from './lib/gameStore.js'
 import { downloadCoverFromUrl } from './lib/images.js'
-import { runBackgroundCoverDownloader } from './lib/coverDownloader.js'
+import { runBackgroundCoverDownloader, downloadCoverForGame } from './lib/coverDownloader.js'
 import { scanSteamLibrary } from './scanners/steamScanner.js'
 import { scanGogLibrary } from './scanners/gogScanner.js'
 import { scanEpicLibrary } from './scanners/epicScanner.js'
 import { scanEaLibrary } from './scanners/eaScanner.js'
 import { scanUbisoftLibrary } from './scanners/ubisoftScanner.js'
+import { scanBattlenetLibrary } from './scanners/battlenetScanner.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -32,6 +33,7 @@ function createWindow() {
     width: 1280,
     height: 720,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       sandbox: false
@@ -47,6 +49,14 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
+
+  // Window state event listeners to push state to React
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-state-changed', true)
+  })
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-state-changed', false)
+  })
 
   mainWindow.on('closed', () => { mainWindow = null })
 }
@@ -80,11 +90,22 @@ ipcMain.handle('save-game', async (event, gameData) => {
       }
     }
 
+    const nameChanged = existingData.name && existingData.name !== gameData.name
+    if (nameChanged) {
+      removeCoverFiles(gameId)
+    }
+
     const merged = { ...existingData, ...gameData, game_id: gameId }
     if (gameId.startsWith('imported_') && merged.source === 'manual') merged.source = 'imported'
 
     writeGame(gameId, merged)
     notifyRenderer()
+
+    // Automatically trigger cover download in the background for new or updated custom games
+    downloadCoverForGame(merged, notifyRenderer).catch(err => {
+      console.error(`[BG-COVER] Failed to automatically download cover for ${merged.name}:`, err.message)
+    })
+
     return { success: true, game: merged }
   } catch (e) {
     console.error('save-game error:', e)
@@ -140,10 +161,10 @@ ipcMain.handle('launch-game', async (event, executable) => {
       // Strip legacy "start " prefix if present
       if (cmd.startsWith('start ')) cmd = cmd.slice(6).trim()
 
-      // Protocol URLs (Steam, GOG Galaxy, Epic, EA, Ubisoft) — open via shell
+      // Protocol URLs (Steam, GOG Galaxy, Epic, EA, Ubisoft, Battle.net) — open via shell
       if (cmd.startsWith('steam://') || cmd.startsWith('goggalaxy://') ||
           cmd.startsWith('com.epicgames.launcher://') || cmd.startsWith('origin2://') ||
-          cmd.startsWith('uplay://')) {
+          cmd.startsWith('uplay://') || cmd.startsWith('battlenet://')) {
         shell.openExternal(cmd).then(() => resolve(true)).catch(reject)
         return
       }
@@ -186,6 +207,29 @@ ipcMain.handle('save-settings', async (event, newSettings) => {
     console.error('Failed to save settings:', e)
     throw e
   }
+})
+
+// ─── IPC: Window Controls ─────────────────────────────────────────────────────
+ipcMain.on('window-minimize', () => {
+  if (mainWindow) mainWindow.minimize()
+})
+
+ipcMain.on('window-maximize', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow.maximize()
+    }
+  }
+})
+
+ipcMain.on('window-close', () => {
+  if (mainWindow) mainWindow.close()
+})
+
+ipcMain.handle('window-is-maximized', () => {
+  return mainWindow ? mainWindow.isMaximized() : false
 })
 
 // ─── IPC: System ─────────────────────────────────────────────────────────────
@@ -313,7 +357,12 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
       }
     }
 
-    if (addedCount > 0) notifyRenderer()
+    if (addedCount > 0) {
+      notifyRenderer()
+      runBackgroundCoverDownloader(notifyRenderer).catch(err => {
+        console.error('[BG-COVER] Scan folder cover downloader failed:', err.message)
+      })
+    }
     return { success: true, count: addedCount }
   } catch (e) {
     console.error('scan-folder error:', e)
@@ -360,7 +409,14 @@ ipcMain.handle('download-cover-url', async (event, gameId, imageUrl) => {
 
 // ─── Auto Scan ────────────────────────────────────────────────────────────────
 function runAutoScan() {
-  Promise.all([scanSteamLibrary(), scanGogLibrary(), scanEpicLibrary(), scanEaLibrary(), scanUbisoftLibrary()])
+  Promise.all([
+    scanSteamLibrary(),
+    scanGogLibrary(),
+    scanEpicLibrary(),
+    scanEaLibrary(),
+    scanUbisoftLibrary(),
+    scanBattlenetLibrary()
+  ])
     .then(() => {
       console.log('[AUTO-SCAN] Background auto-scan completed.')
       notifyRenderer()

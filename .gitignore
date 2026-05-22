@@ -4,3 +4,5 @@ dist-electron/
 .env
 *.local
 .DS_Store
+.aider*
+scratch/

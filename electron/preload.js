@@ -28,5 +28,14 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (event, data) => callback(data)
     ipcRenderer.on('show-toast', listener)
     return () => ipcRenderer.removeListener('show-toast', listener)
+  },
+  minimizeWindow: () => ipcRenderer.send('window-minimize'),
+  maximizeWindow: () => ipcRenderer.send('window-maximize'),
+  closeWindow: () => ipcRenderer.send('window-close'),
+  isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  onWindowStateChanged: (callback) => {
+    const listener = (event, isMaximized) => callback(isMaximized)
+    ipcRenderer.on('window-state-changed', listener)
+    return () => ipcRenderer.removeListener('window-state-changed', listener)
   }
 })
