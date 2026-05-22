@@ -643,9 +643,9 @@ const App = () => {
                   </div>
                 ) : (
                   <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      {sortedVisibleGames.map(game => <GameCard key={game.game_id} game={game} isHidden={false} {...commonCardProps} />)}
-                    </AnimatePresence>
+                    {sortedVisibleGames.map(game => (
+                      <GameCard key={game.game_id} game={game} isHidden={false} {...commonCardProps} />
+                    ))}
                   </div>
                 )}
               </div>
@@ -666,9 +666,9 @@ const App = () => {
                   </div>
                 ) : (
                   <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      {sortedHiddenGames.map(game => <GameCard key={game.game_id} game={game} isHidden={true} {...commonCardProps} />)}
-                    </AnimatePresence>
+                    {sortedHiddenGames.map(game => (
+                      <GameCard key={game.game_id} game={game} isHidden={true} {...commonCardProps} />
+                    ))}
                   </div>
                 )}
               </div>
