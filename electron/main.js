@@ -482,23 +482,6 @@ app.whenReady().then(() => {
         if (mainWindow) mainWindow.webContents.send('accent-color-changed', newColor)
       })
     }
-
-    // Interval fallback check every 60 seconds
-    setInterval(() => {
-      if (systemPreferences.getAccentColor) {
-        try {
-          const raw = systemPreferences.getAccentColor()
-          const currentAccent = raw.length === 8 ? raw.slice(0, 6) : raw
-          if (currentAccent !== lastAccentColor) {
-            lastAccentColor = currentAccent
-            console.log('[ACCENT-FALLBACK] Theme accent color change detected:', currentAccent)
-            if (mainWindow) mainWindow.webContents.send('accent-color-changed', currentAccent)
-          }
-        } catch (e) {
-          console.error('Failed to poll accent color:', e)
-        }
-      }
-    }, 60000)
   }
 
   app.on('activate', () => {
