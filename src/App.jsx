@@ -12,6 +12,7 @@ import { DEFAULT_ACCENT, applyAccentPalette } from './theme/accent.js'
 import CartridgeIcon from './components/CartridgeIcon.jsx'
 import AddGameModal from './components/modals/AddGameModal.jsx'
 import EditGameModal from './components/modals/EditGameModal.jsx'
+import AboutModal from './components/modals/AboutModal.jsx'
 
 
 import { TitleBar } from './components/TitleBar.jsx'
@@ -212,6 +213,7 @@ const App = () => {
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showAboutModal, setShowAboutModal] = useState(false)
 
 
   const [isScanning, setIsScanning] = useState(false)
@@ -278,10 +280,11 @@ const App = () => {
       const mod = navigator.platform.toUpperCase().includes('MAC') ? e.metaKey : e.ctrlKey
       if (mod && e.key.toLowerCase() === 'h') { e.preventDefault(); setShowHidden(p => !p) }
       if (e.key === 'Escape') {
-        const anyOpen = showAddModal || showEditModal
+        const anyOpen = showAddModal || showEditModal || showAboutModal
         if (anyOpen) {
           setShowAddModal(false)
           setShowEditModal(false)
+          setShowAboutModal(false)
         } else if (showSearch) {
           setShowSearch(false)
           setSearchTerm('')
@@ -292,7 +295,7 @@ const App = () => {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showHidden, showAddModal, showEditModal, showSearch, setSearchTerm])
+  }, [showHidden, showAddModal, showEditModal, showAboutModal, showSearch, setSearchTerm])
 
   // Auto-focus search input when search bar opens
   useEffect(() => {
@@ -510,6 +513,7 @@ const App = () => {
         setSortBy={setSortBy}
         showSearch={showSearch}
         setShowSearch={setShowSearch}
+        openAboutModal={() => setShowAboutModal(true)}
       />
 
       <div style={styles.container}>
@@ -684,6 +688,13 @@ const App = () => {
               formExecutable={formExecutable} setFormExecutable={setFormExecutable}
               onSubmit={handleEditGameSubmit} onClose={() => { setShowEditModal(false); resetForm() }}
               onToggleHide={handleToggleHideGame} onDelete={handleDeleteGame}
+            />
+          )}
+          {showAboutModal && (
+            <AboutModal
+              accentHex={accentHex}
+              version="1.0.5"
+              onClose={() => setShowAboutModal(false)}
             />
           )}
         </AnimatePresence>

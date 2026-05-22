@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import {
   Sidebar, Plus, PlusSquare, FolderPlus, Search, X,
-  Menu, ChevronRight, ChevronLeft, Loader2, Check
+  Menu, ChevronRight, ChevronLeft, Loader2, Check, Info
 } from 'lucide-react'
 import { styles } from '../theme/styles.js'
 
@@ -43,7 +43,8 @@ export const TitleBar = ({
   sortBy,
   setSortBy,
   showSearch,
-  setShowSearch
+  setShowSearch,
+  openAboutModal
 }) => {
   // Window State
   const [isMaximized, setIsMaximized] = useState(false)
@@ -224,6 +225,22 @@ export const TitleBar = ({
                       <span>Show Hidden</span>
                     </div>
                     <span style={styles.popoverShortcut}>Ctrl+H</span>
+                  </div>
+                  <div
+                    className="gtk-menu-item"
+                    style={styles.popoverItem}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openAboutModal()
+                      setShowMenu(false)
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '16px', display: 'flex', justifyContent: 'center' }}>
+                        <Info size={14} color={`#${accentHex}`} />
+                      </div>
+                      <span>About VibePort</span>
+                    </div>
                   </div>
                 </div>
               ) : (
