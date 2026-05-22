@@ -29,7 +29,7 @@ const AddGameModal = ({
       <div style={{ ...styles.formLayout, height: 'auto' }}>
         <form onSubmit={onSubmit} style={styles.formLeft}>
           <div style={styles.formGroup}>
-            <label style={styles.formLabel}>Game Title *</label>
+            <label style={styles.formLabel}>Game Title</label>
             <input
               type="text" className="form-input" placeholder="e.g. Rimworld"
               value={formName} onChange={(e) => setFormName(e.target.value)} required
@@ -37,7 +37,7 @@ const AddGameModal = ({
           </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.formLabel}>Command / Executable Path *</label>
+            <label style={styles.formLabel}>Executable</label>
             <input
               type="text" className="form-input" placeholder='e.g. "C:\\Games\\Hades2\\Hades2.exe"'
               value={formExecutable} onChange={(e) => setFormExecutable(e.target.value)} required
