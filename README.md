@@ -1,4 +1,4 @@
-# 🎮 Vibeport
+# 🎮 VibePort
 
 A beautiful, lightweight, and modern game launcher built with React, Vite, and Electron. It aggregates your games from Steam, GOG, Epic Games, EA App, Ubisoft Connect, Battle.net, and custom folders into one gorgeous unified library.
 
@@ -39,80 +39,27 @@ This project is a **spiritual fork** of [Cartridges](https://github.com/kra-mo/c
 
 ---
 
-## 🚀 Recommended GitHub Deployment & Auto-Updates
+## 📦 Releases & Auto-Updates
 
-Hosting this project on **GitHub** is highly recommended as it integrates seamlessly with `electron-builder` and `electron-updater` to provide fully automated background updates!
+VibePort is configured with fully automated CI/CD and background auto-updates via GitHub Actions and `electron-updater`.
 
-### 1. Configure Auto-Updates in the App
-Install `electron-updater` as a dependency:
-```bash
-npm install electron-updater
-```
+### How to Release a New Version
 
-Add the update checker in `electron/main.js`:
-```javascript
-import { autoUpdater } from 'electron-updater'
+1. **Update Version**: Increment the `"version"` field in `package.json` (e.g., `"1.0.1"`).
+2. **Commit Changes**: Commit the version bump to main:
+   ```bash
+   git add package.json
+   git commit -m "bump: version 1.0.1"
+   git push origin main
+   ```
+3. **Push a New Tag**: Create and push a tag matching the new version:
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+4. **Publish Draft Release**:
+   * Pushing the tag automatically triggers the **Build and Release** workflow on GitHub Actions.
+   * GitHub Actions will build the production installer (`VibePort Setup 1.0.1.exe`) and upload it as a **Draft Release** under the [Releases](https://github.com/thisischrys/VibePort/releases) tab.
+   * Open the draft release on GitHub, click **Edit**, and then click **Publish Release**.
+5. **Auto-Update**: Once published, all installed clients will automatically detect the update on next launch, download it in the background, and seamlessly apply it when closed.
 
-app.whenReady().then(() => {
-  // ... window creation ...
-  
-  // Check for updates automatically on start
-  autoUpdater.checkForUpdatesAndNotify()
-})
-```
-
-Add the `publish` block inside `package.json` under your `"build"` configuration:
-```json
-  "build": {
-    "appId": "com.vibeport.app",
-    "productName": "Vibeport",
-    "publish": {
-      "provider": "github",
-      "owner": "YOUR_GITHUB_USERNAME",
-      "repo": "YOUR_REPOSITORY_NAME"
-    },
-    ...
-  }
-```
-
-### 2. Fully Automated GitHub Actions (CI/CD)
-To automate building and packaging your app, create a file named `.github/workflows/release.yml`:
-
-```yaml
-name: Build and Release
-
-on:
-  push:
-    tags:
-      - 'v*' # Triggers build on tag push, e.g. v1.1.0
-
-permissions:
-  contents: write # Allows workflow to draft releases
-
-jobs:
-  release:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-size: 20
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build and Publish Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build -- --publish always
-```
-
-With this workflow active:
-1. When you are ready to publish a new version, push a new version tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`).
-2. GitHub Actions will spin up a Windows runner, compile the assets, package the portable binary using `electron-builder`, and **create a draft release on GitHub** with the installer attached!
-3. Once you publish the release, any installed clients will automatically download and apply the update in the background.
