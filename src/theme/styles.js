@@ -471,13 +471,12 @@ export const styles = {
   playOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(7, 6, 10, 0.65)',
+    backgroundColor: 'transparent',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0,
     transition: 'opacity 0.2s ease',
-    backdropFilter: 'blur(3px)',
   },
   playButtonCircle: {
     width: '52px',
