@@ -61,15 +61,22 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
     }
 
     if (isAnimated) {
-      console.log(`[COVER-DL] Detected animated cover for ${gameId}. Bypassing sharp compression to preserve animation.`)
+      console.log(`[COVER-DL] Detected animated cover for ${gameId}. Resizing and compressing animation to 300x450...`)
       targetPath = path.join(coversDir, `${gameId}${animExt}`)
-      fs.writeFileSync(targetPath, buffer)
+      try {
+        await sharp(buffer, { animated: true, limitInputPixels: false })
+          .resize({ width: 300, height: 450, fit: 'cover' })
+          .toFile(targetPath)
+      } catch (sharpErr) {
+        console.warn(`[SHARP] Animated compression failed for ${gameId}, saving original: ${sharpErr.message}`)
+        fs.writeFileSync(targetPath, buffer)
+      }
 
       if (animExt === '.gif') {
         try {
           await sharp(targetPath).metadata()
         } catch (err) {
-          console.warn(`[GIF VALIDATION] Downloaded GIF is corrupt. Repairing...`)
+          console.warn(`[GIF VALIDATION] Resized GIF is corrupt or needs repair. Repairing...`)
           await repairGif(targetPath)
         }
       }

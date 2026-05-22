@@ -1,5 +1,5 @@
 // ─── CartridgeIcon ────────────────────────────────────────────────────────────
-// Custom SVG cartridge icon used in the sidebar, about modal, and empty states.
+// Custom SVG cartridge icon used in the sidebar and empty states.
 
 const CartridgeIcon = ({ size = 20, color = '#c084fc', className = '', style = {} }) => {
   const safeColor = color.replace('#', '')

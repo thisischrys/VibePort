@@ -31,7 +31,7 @@ const AddGameModal = ({
           <div style={styles.formGroup}>
             <label style={styles.formLabel}>Game Title *</label>
             <input
-              type="text" className="form-input" placeholder="e.g. Hades II"
+              type="text" className="form-input" placeholder="e.g. Rimworld"
               value={formName} onChange={(e) => setFormName(e.target.value)} required
             />
           </div>

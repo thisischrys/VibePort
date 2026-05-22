@@ -69,6 +69,36 @@ export async function resolveCoverUrl(gameId) {
     }
   }
 
+  // Auto-optimize / downsize large covers in place (static and animated)
+  try {
+    const metadata = await sharp(fullPath).metadata()
+    if (metadata.width && metadata.width > 300) {
+      console.log(`[COVER-OPTIMIZE] Cover ${coverFile} is too large (${metadata.width}x${metadata.height}). Downsizing to 300px width in-place...`)
+      const isAnimated = metadata.pages && metadata.pages > 1
+      const ext = path.extname(coverFile).toLowerCase()
+      const buffer = fs.readFileSync(fullPath)
+      
+      let sharpInstance = sharp(buffer, { animated: isAnimated, limitInputPixels: false })
+        .resize({ width: 300, height: 450, fit: 'cover' })
+      
+      if (ext === '.webp') {
+        sharpInstance = sharpInstance.webp({ quality: 80, effort: 4 })
+      } else if (ext === '.png') {
+        sharpInstance = sharpInstance.png({ quality: 80 })
+      } else if (ext === '.gif') {
+        // preserve gif
+      } else {
+        sharpInstance = sharpInstance.jpeg({ quality: 80 })
+      }
+      
+      const optimizedBuffer = await sharpInstance.toBuffer()
+      fs.writeFileSync(fullPath, optimizedBuffer)
+      console.log(`[COVER-OPTIMIZE] Successfully downsized ${coverFile} to 300x450 in-place.`)
+    }
+  } catch (err) {
+    console.error(`[COVER-OPTIMIZE] Failed to optimize cover ${coverFile}:`, err.message)
+  }
+
   return `media://${fullPath.replace(/\\/g, '/')}`
 }
 

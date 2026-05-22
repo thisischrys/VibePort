@@ -10,11 +10,10 @@ import {
 import { styles } from './theme/styles.js'
 import { DEFAULT_ACCENT, applyAccentPalette } from './theme/accent.js'
 import CartridgeIcon from './components/CartridgeIcon.jsx'
-import SettingsModal from './components/modals/SettingsModal.jsx'
 import AddGameModal from './components/modals/AddGameModal.jsx'
 import EditGameModal from './components/modals/EditGameModal.jsx'
-import ShortcutsModal from './components/modals/ShortcutsModal.jsx'
-import AboutModal from './components/modals/AboutModal.jsx'
+
+
 import { TitleBar } from './components/TitleBar.jsx'
 
 // ─── Global CSS Injection ─────────────────────────────────────────────────────
@@ -112,16 +111,8 @@ const getSourceLabel = (src) => {
 }
 
 // ─── Card Sizing ──────────────────────────────────────────────────────────────
-const getGridColumns = (size) => {
-  if (size === 'compact') return 'repeat(auto-fill, minmax(130px, 1fr))'
-  if (size === 'large') return 'repeat(auto-fill, minmax(220px, 1fr))'
-  return 'repeat(auto-fill, minmax(180px, 1fr))'
-}
-const getCardFontSize = (size) => {
-  if (size === 'compact') return '12.5px'
-  if (size === 'large') return '16.5px'
-  return '14.5px'
-}
+const getGridColumns = () => 'repeat(auto-fill, minmax(180px, 1fr))'
+const getCardFontSize = () => '15.5px'
 
 // ─── Sorting ──────────────────────────────────────────────────────────────────
 const SORT_OPTIONS = [
@@ -154,7 +145,7 @@ function sortGames(games, sortBy) {
 
 // ─── GameCard ─────────────────────────────────────────────────────────────────
 
-const GameCard = ({ game, isHidden, failedCovers, settings, cardFontSize, onLaunch, onEdit, onImageError }) => (
+const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit, onImageError }) => (
   <motion.div
     key={game.game_id}
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -196,14 +187,9 @@ const GameCard = ({ game, isHidden, failedCovers, settings, cardFontSize, onLaun
         </div>
       </div>
     </div>
-    {settings.show_titles && (
-      <div style={styles.gameInfo}>
-        <div className="game-title" style={{ ...styles.gameTitle, fontSize: cardFontSize }}>{game.name}</div>
-        <div style={styles.gameSourceBadge}>
-          {['imported', 'manual'].includes(game.source) ? 'ADDED' : game.source?.toUpperCase() || 'LOCAL'}
-        </div>
-      </div>
-    )}
+    <div style={styles.gameInfo}>
+      <div className="game-title" style={{ ...styles.gameTitle, fontSize: cardFontSize }}>{game.name}</div>
+    </div>
   </motion.div>
 )
 
@@ -214,6 +200,7 @@ const App = () => {
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
   const [selectedSource, setSelectedSource] = useState('all')
   const [launchingGame, setLaunchingGame] = useState(null)
   const [launchStatus, setLaunchStatus] = useState(null) // 'success' | 'error' | null
@@ -221,13 +208,12 @@ const App = () => {
   const [accentHex, setAccentHex] = useState(DEFAULT_ACCENT)
   const [activeToast, setActiveToast] = useState(null)
 
-  const [settings, setSettings] = useState({ card_size: 'cozy', show_titles: true, use_windows_accent: true })
 
-  const [showSettingsModal, setShowSettingsModal] = useState(false)
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
-  const [showAboutModal, setShowAboutModal] = useState(false)
+
+
   const [isScanning, setIsScanning] = useState(false)
 
   const [editingGame, setEditingGame] = useState(null)
@@ -265,7 +251,7 @@ const App = () => {
   // ── Accent Color ───────────────────────────────────────────────────────────
   useEffect(() => {
     const applyColor = (hex) => {
-      const useWindows = settings.use_windows_accent !== false
+      const useWindows = true
       const clean = (useWindows ? (hex || DEFAULT_ACCENT) : DEFAULT_ACCENT).replace('#', '')
       setAccentHex(clean)
       applyAccentPalette(clean)
@@ -280,7 +266,7 @@ const App = () => {
     let unsub
     if (window.api?.onAccentColorChanged) unsub = window.api.onAccentColorChanged(applyColor)
     return () => { if (unsub) unsub() }
-  }, [settings.use_windows_accent])
+  }, [])
 
   // ── Keyboard Shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -291,20 +277,14 @@ const App = () => {
       }
       const mod = navigator.platform.toUpperCase().includes('MAC') ? e.metaKey : e.ctrlKey
       if (mod && e.key.toLowerCase() === 'h') { e.preventDefault(); setShowHidden(p => !p) }
-      if (mod && e.key === ',') { e.preventDefault(); setShowSettingsModal(true) }
-      if (mod && (e.key === '?' || e.key === '/')) { e.preventDefault(); setShowShortcutsModal(true) }
-      if (mod && e.key.toLowerCase() === 'f') {
-        e.preventDefault()
-        setTimeout(() => {
-          const el = document.querySelector('input.search-input-focus')
-          if (el) { el.focus(); el.select() }
-        }, 50)
-      }
       if (e.key === 'Escape') {
-        const anyOpen = showSettingsModal || showAddModal || showEditModal || showShortcutsModal || showAboutModal
+        const anyOpen = showAddModal || showEditModal
         if (anyOpen) {
-          setShowSettingsModal(false); setShowAddModal(false)
-          setShowEditModal(false); setShowShortcutsModal(false); setShowAboutModal(false)
+          setShowAddModal(false)
+          setShowEditModal(false)
+        } else if (showSearch) {
+          setShowSearch(false)
+          setSearchTerm('')
         } else if (showHidden) {
           setShowHidden(false)
         }
@@ -312,7 +292,22 @@ const App = () => {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showHidden, showSettingsModal, showAddModal, showEditModal, showShortcutsModal, showAboutModal])
+  }, [showHidden, showAddModal, showEditModal, showSearch, setSearchTerm])
+
+  // Auto-focus search input when search bar opens
+  useEffect(() => {
+    if (showSearch) {
+      setTimeout(() => {
+        const el = document.getElementById('main-search-input')
+        if (el) {
+          el.focus()
+          el.select()
+        }
+      }, 50)
+    } else {
+      setSearchTerm('')
+    }
+  }, [showSearch])
 
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
@@ -327,13 +322,8 @@ const App = () => {
     }
   }
 
-  const fetchSettings = async () => {
-    try { setSettings(await window.api.getSettings()) } catch (e) { console.error('Failed to load settings:', e) }
-  }
-
   useEffect(() => {
     fetchGames()
-    fetchSettings()
     const subs = []
     if (window.api.onGamesUpdated) subs.push(window.api.onGamesUpdated(fetchGames))
     if (window.api.onShowToast) subs.push(window.api.onShowToast((d) => { if (d?.message) triggerToast(d.message, d.type) }))
@@ -357,11 +347,7 @@ const App = () => {
     }
   }
 
-  const handleSaveSettingsValue = async (key, value) => {
-    const updated = { ...settings, [key]: value }
-    setSettings(updated)
-    try { await window.api.saveSettings(updated) } catch (e) { console.error('Failed to save settings:', e) }
-  }
+
 
   const handleToggleHideGame = async (game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
@@ -426,7 +412,6 @@ const App = () => {
   }
 
   const handleScanGamesFolder = async () => {
-    setShowPlusDropdown(false)
     try {
       const folderPath = await window.api.selectFolder()
       if (!folderPath) return
@@ -483,10 +468,10 @@ const App = () => {
   const sortedVisibleGames = sortGames(filterGames(activeGames), sortBy)
   const sortedHiddenGames = sortGames(filterGames(games.filter(g => g.hidden)), sortBy)
 
-  const cardFontSize = getCardFontSize(settings.card_size)
-  const gridCols = getGridColumns(settings.card_size)
+  const cardFontSize = getCardFontSize()
+  const gridCols = getGridColumns()
 
-  const commonCardProps = { failedCovers, settings, cardFontSize, onLaunch: handleLaunch, onEdit: openEditModal, onImageError: (id) => setFailedCovers(p => ({ ...p, [id]: true })) }
+  const commonCardProps = { failedCovers, cardFontSize, onLaunch: handleLaunch, onEdit: openEditModal, onImageError: (id) => setFailedCovers(p => ({ ...p, [id]: true })) }
 
   // ── Sidebar Source Nav Items ───────────────────────────────────────────────
   const renderSidebarItem = (src, label, icon) => {
@@ -523,22 +508,13 @@ const App = () => {
         openAddModal={openAddModal}
         sortBy={sortBy}
         setSortBy={setSortBy}
-        setShowSettingsModal={setShowSettingsModal}
-        setShowShortcutsModal={setShowShortcutsModal}
-        setShowAboutModal={setShowAboutModal}
+        showSearch={showSearch}
+        setShowSearch={setShowSearch}
       />
 
       <div style={styles.container}>
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-        <div style={{ ...styles.sidebar, width: showSidebar ? '260px' : '0px', padding: showSidebar ? '0 0 24px 0' : '0', borderRight: showSidebar ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: showSidebar ? 1 : 0, overflow: 'hidden', transition: 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
-          <div style={styles.sidebarHeader}>
-            <div className="header-action" style={styles.sidebarToggleBtn} onClick={() => setShowSidebar(false)} title="Hide Sidebar">
-              <Sidebar size={16} style={styles.actionIcon} />
-            </div>
-            <span style={styles.sidebarHeaderText}>VibePort</span>
-          </div>
-
-          <div style={styles.sectionHeader}>LIBRARY</div>
+        <div style={{ ...styles.sidebar, width: showSidebar ? '260px' : '0px', padding: showSidebar ? '16px 0 24px 0' : '0', borderRight: showSidebar ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: showSidebar ? 1 : 0, overflow: 'hidden', transition: 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
           <div style={styles.sidebarNav}>
             {['all', 'imported'].filter(s => sources.includes(s)).map(s =>
               renderSidebarItem(s, getSourceLabel(s), s === 'imported'
@@ -600,22 +576,51 @@ const App = () => {
             )}
           </AnimatePresence>
 
+          {/* Slide-out Search Bar Row */}
+          <AnimatePresence>
+            {showSearch && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: '48px', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  ...styles.searchBarRow,
+                  backgroundColor: 'var(--bg-deep)',
+                  overflow: 'hidden'
+                }}
+              >
+                <div style={styles.searchBarInner}>
+                  <Search size={15} color="#64748b" style={{ marginRight: '8px', flexShrink: 0 }} />
+                  <input
+                    id="main-search-input"
+                    type="text"
+                    placeholder={showHidden ? "Search hidden games..." : `Search ${getSourceLabel(selectedSource).toLowerCase()}...`}
+                    className="search-input-focus"
+                    style={styles.searchBarInput}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <div
+                      onClick={() => setSearchTerm('')}
+                      style={{ cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }}
+                    >
+                      <X size={14} />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Horizontal Slide Wrapper (Library / Hidden) */}
           <div style={{ ...styles.mainSlider, transform: showHidden ? 'translateX(-50%)' : 'translateX(0)' }}>
 
             {/* ── PANEL 1: Library ──────────────────────────────────────── */}
             <div style={styles.mainPanel}>
               <div style={styles.gridContainer}>
-                {!loading && sortedVisibleGames.length > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '24px', paddingLeft: '4px' }}>
-                    <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '28px', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.5px' }}>
-                      {getSourceLabel(selectedSource)}
-                    </h1>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent)', backgroundColor: 'var(--accent-bg-faint)', border: '1px solid var(--accent-border)', padding: '2px 8px', borderRadius: '20px' }}>
-                      {sortedVisibleGames.length} {sortedVisibleGames.length === 1 ? 'game' : 'games'}
-                    </span>
-                  </div>
-                )}
+
 
                 {loading ? (
                   <div style={styles.loadingContainer}><div style={styles.spinnerLarge} /><div style={styles.loadingText}>Syncing game libraries...</div></div>
@@ -638,16 +643,7 @@ const App = () => {
             {/* ── PANEL 2: Hidden Games ─────────────────────────────────── */}
             <div style={styles.mainPanel}>
               <div style={styles.gridContainer}>
-                {!loading && sortedHiddenGames.length > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '24px', paddingLeft: '4px' }}>
-                    <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '28px', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.5px' }}>
-                      Hidden Games
-                    </h1>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent)', backgroundColor: 'var(--accent-bg-faint)', border: '1px solid var(--accent-border)', padding: '2px 8px', borderRadius: '20px' }}>
-                      {sortedHiddenGames.length} {sortedHiddenGames.length === 1 ? 'game' : 'games'}
-                    </span>
-                  </div>
-                )}
+
 
                 {loading ? (
                   <div style={styles.loadingContainer}><div style={styles.spinnerLarge} /><div style={styles.loadingText}>Syncing game libraries...</div></div>
@@ -671,9 +667,6 @@ const App = () => {
 
         {/* ── Modals ──────────────────────────────────────────────────────── */}
         <AnimatePresence>
-          {showShortcutsModal && <ShortcutsModal accentHex={accentHex} onClose={() => setShowShortcutsModal(false)} />}
-          {showAboutModal && <AboutModal accentHex={accentHex} onClose={() => setShowAboutModal(false)} />}
-          {showSettingsModal && <SettingsModal accentHex={accentHex} settings={settings} onClose={() => setShowSettingsModal(false)} onSaveSetting={handleSaveSettingsValue} />}
           {showAddModal && (
             <AddGameModal
               accentHex={accentHex}
