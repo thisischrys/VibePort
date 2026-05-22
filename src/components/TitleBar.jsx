@@ -110,10 +110,10 @@ export const TitleBar = ({
               <Sidebar size={18} style={styles.actionIcon} />
             </div>
 
-            {/* Vibeport Brand */}
+            {/* VibePort Brand */}
             <div style={styles.titlebarBrand}>
               <CartridgeIcon size={16} color={`#${accentHex}`} />
-              <span style={styles.titlebarBrandText}>Vibeport</span>
+              <span style={styles.titlebarBrandText}>VibePort</span>
             </div>
 
             {/* Add Game Plus Dropdown */}
@@ -307,7 +307,7 @@ export const TitleBar = ({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ width: '16px' }} />
-                        <span>About Vibeport</span>
+                        <span>About VibePort</span>
                       </div>
                     </div>
                   </div>

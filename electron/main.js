@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import path from 'node:path'
 import fs from 'node:fs'
 import { spawn } from 'node:child_process'
@@ -456,6 +457,9 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  
+  // Check for updates automatically on start and notify
+  autoUpdater.checkForUpdatesAndNotify()
 
   // Delay auto-scan by 2s to let the window finish rendering first
   setTimeout(runAutoScan, 2000)

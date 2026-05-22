@@ -373,7 +373,7 @@ const App = () => {
 
   const handleDeleteGame = async (game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
-    if (!confirm(`Are you sure you want to remove "${game.name}" from Vibeport?`)) return
+    if (!confirm(`Are you sure you want to remove "${game.name}" from VibePort?`)) return
     try {
       await window.api.deleteGame(game.game_id)
       await fetchGames()
@@ -535,7 +535,7 @@ const App = () => {
             <div className="header-action" style={styles.sidebarToggleBtn} onClick={() => setShowSidebar(false)} title="Hide Sidebar">
               <Sidebar size={16} style={styles.actionIcon} />
             </div>
-            <span style={styles.sidebarHeaderText}>Vibeport</span>
+            <span style={styles.sidebarHeaderText}>VibePort</span>
           </div>
 
           <div style={styles.sectionHeader}>LIBRARY</div>

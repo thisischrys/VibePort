@@ -22,7 +22,7 @@ const AboutModal = ({ accentHex, onClose }) => (
         <CartridgeIcon size={64} color={`#${accentHex}`} />
 
         <div>
-          <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#f8fafc', margin: '0' }}>Vibeport</h2>
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#f8fafc', margin: '0' }}>VibePort</h2>
           <div style={{ fontSize: '12px', color: '#a78bfa', fontWeight: '600', marginTop: '4px' }}>v1.0.0</div>
         </div>
 
