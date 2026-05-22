@@ -509,7 +509,7 @@ const App = () => {
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         selectedSource={selectedSource}
-        showSidebar={showSidebar}
+        showSidebar={showSidebar && !showHidden}
         setShowSidebar={setShowSidebar}
         showHidden={showHidden}
         setShowHidden={setShowHidden}
@@ -525,7 +525,7 @@ const App = () => {
 
       <div style={styles.container}>
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-        <div style={{ ...styles.sidebar, width: showSidebar ? '260px' : '0px', padding: showSidebar ? '16px 0 24px 0' : '0', borderRight: showSidebar ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: showSidebar ? 1 : 0, overflow: 'hidden', transition: 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
+        <div style={{ ...styles.sidebar, width: (showSidebar && !showHidden) ? '260px' : '0px', padding: (showSidebar && !showHidden) ? '16px 0 24px 0' : '0', borderRight: (showSidebar && !showHidden) ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: (showSidebar && !showHidden) ? 1 : 0, overflow: 'hidden', transition: 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
           <div style={styles.sidebarNav}>
             {['all', 'imported'].filter(s => sources.includes(s)).map(s =>
               renderSidebarItem(s, getSourceLabel(s), s === 'imported'
