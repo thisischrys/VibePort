@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences, Notification } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -19,6 +19,10 @@ import { scanBattlenetLibrary } from './scanners/battlenetScanner.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.vibeport.app')
+}
 
 let mainWindow = null
 let lastAccentColor = null
@@ -473,8 +477,20 @@ app.whenReady().then(() => {
 
   createWindow()
   
-  // Check for updates automatically on start and notify
-  autoUpdater.checkForUpdatesAndNotify()
+  // Check for updates automatically on start
+  autoUpdater.checkForUpdates()
+
+  autoUpdater.on('update-downloaded', (info) => {
+    try {
+      const notification = new Notification({
+        title: 'VibePort Update Ready',
+        body: `VibePort version ${info.version} has been downloaded and will be automatically installed on exit.`
+      })
+      notification.show()
+    } catch (e) {
+      console.error('Failed to show update notification:', e)
+    }
+  })
 
   // Delay auto-scan by 2s to let the window finish rendering first
   setTimeout(runAutoScan, 2000)
