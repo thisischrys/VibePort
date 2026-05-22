@@ -13,6 +13,7 @@ import CartridgeIcon from './components/CartridgeIcon.jsx'
 import AddGameModal from './components/modals/AddGameModal.jsx'
 import EditGameModal from './components/modals/EditGameModal.jsx'
 import AboutModal from './components/modals/AboutModal.jsx'
+import { LauncherIcon } from './components/LauncherIcon.jsx'
 
 
 import { TitleBar } from './components/TitleBar.jsx'
@@ -491,7 +492,7 @@ const App = () => {
       <div key={src} className={isActive ? '' : 'sidebar-nav-item'}
         style={{ ...styles.sidebarItem, ...(isActive ? styles.activeSidebarItem : {}) }}
         onClick={() => setSelectedSource(src)}>
-        {icon || <LayoutGrid size={16} color={isActive ? `#${accentHex}` : '#64748b'} />}
+        {icon || <LauncherIcon source={src} size={16} color={isActive ? `#${accentHex}` : '#64748b'} />}
         <span style={{ fontWeight: isActive ? '700' : '500' }}>{label}</span>
         <span style={{ ...styles.itemCount, ...(isActive ? styles.activeItemCount : {}) }}>{count}</span>
       </div>
@@ -525,7 +526,7 @@ const App = () => {
 
       <div style={styles.container}>
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-        <div style={{ ...styles.sidebar, width: (showSidebar && !showHidden) ? '260px' : '0px', padding: (showSidebar && !showHidden) ? '16px 0 24px 0' : '0', borderRight: (showSidebar && !showHidden) ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: (showSidebar && !showHidden) ? 1 : 0, overflow: 'hidden', transition: 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
+        <div style={{ ...styles.sidebar, width: (showSidebar && !showHidden) ? '260px' : '0px', padding: (showSidebar && !showHidden) ? '16px 0 24px 0' : '0', borderRight: (showSidebar && !showHidden) ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: (showSidebar && !showHidden) ? 1 : 0, overflow: 'hidden', transition: showHidden ? 'none' : 'all 0.25s cubic-bezier(0.25,0.8,0.25,1)' }}>
           <div style={styles.sidebarNav}>
             {['all', 'imported'].filter(s => sources.includes(s)).map(s =>
               renderSidebarItem(s, getSourceLabel(s), s === 'imported'

@@ -42,10 +42,34 @@ const EditGameModal = ({
 
             <div style={styles.formGroup}>
               <label style={styles.formLabel}>Executable</label>
-              <input
-                type="text" className="form-input"
-                value={formExecutable} onChange={(e) => setFormExecutable(e.target.value)} required
-              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text" className="form-input" style={{ flex: 1 }}
+                  value={formExecutable} onChange={(e) => setFormExecutable(e.target.value)} required
+                />
+                <button
+                  type="button"
+                  className="glass-btn"
+                  style={{
+                    padding: '0 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                  }}
+                  onClick={async () => {
+                    try {
+                      const file = await window.api.selectFile()
+                      if (file) setFormExecutable(file)
+                    } catch (e) {
+                      console.error('Failed to select file:', e)
+                    }
+                  }}
+                >
+                  Browse
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>

@@ -96,11 +96,6 @@ ipcMain.handle('save-game', async (event, gameData) => {
       }
     }
 
-    const nameChanged = existingData.name && existingData.name !== gameData.name
-    if (nameChanged) {
-      removeCoverFiles(gameId)
-    }
-
     const merged = { ...existingData, ...gameData, game_id: gameId }
     if (gameId.startsWith('imported_') && merged.source === 'manual') merged.source = 'imported'
 
@@ -275,6 +270,22 @@ ipcMain.handle('select-folder', async () => {
     return result.canceled ? null : result.filePaths[0]
   } catch (e) {
     console.error('select-folder error:', e)
+    return null
+  }
+})
+
+ipcMain.handle('select-file', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [
+        { name: 'Executables', extensions: ['exe', 'lnk', 'bat', 'cmd', 'sh', 'com'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+    return result.canceled ? null : result.filePaths[0]
+  } catch (e) {
+    console.error('select-file error:', e)
     return null
   }
 })

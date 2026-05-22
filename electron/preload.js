@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('accent-color-changed', listener)
   },
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  selectFile: () => ipcRenderer.invoke('select-file'),
   scanFolder: (folderPath) => ipcRenderer.invoke('scan-folder', folderPath),
   onGamesUpdated: (callback) => {
     const listener = () => callback()
