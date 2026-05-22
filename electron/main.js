@@ -248,6 +248,20 @@ ipcMain.handle('get-accent-color', () => {
   }
 })
 
+ipcMain.on('get-accent-color-sync', (event) => {
+  try {
+    if (process.platform === 'win32' && systemPreferences.getAccentColor) {
+      const raw = systemPreferences.getAccentColor()
+      event.returnValue = raw.length === 8 ? raw.slice(0, 6) : raw
+    } else {
+      event.returnValue = null
+    }
+  } catch (e) {
+    console.error('get-accent-color-sync error:', e)
+    event.returnValue = null
+  }
+})
+
 ipcMain.handle('select-folder', async () => {
   try {
     const result = await dialog.showOpenDialog(mainWindow, {

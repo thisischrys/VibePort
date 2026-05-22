@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   fetchSteamGridDBCovers: (gameId) => ipcRenderer.invoke('fetch-steamgriddb-covers', gameId),
   downloadCoverUrl: (gameId, url) => ipcRenderer.invoke('download-cover-url', gameId, url),
   getAccentColor: () => ipcRenderer.invoke('get-accent-color'),
+  getAccentColorSync: () => ipcRenderer.sendSync('get-accent-color-sync'),
   onAccentColorChanged: (callback) => {
     const listener = (event, color) => callback(color)
     ipcRenderer.on('accent-color-changed', listener)

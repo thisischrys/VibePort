@@ -206,7 +206,20 @@ const App = () => {
   const [launchingGame, setLaunchingGame] = useState(null)
   const [launchStatus, setLaunchStatus] = useState(null) // 'success' | 'error' | null
   const [failedCovers, setFailedCovers] = useState({})
-  const [accentHex, setAccentHex] = useState(DEFAULT_ACCENT)
+  const [accentHex, setAccentHex] = useState(() => {
+    let initialColor = DEFAULT_ACCENT
+    if (window.api?.getAccentColorSync) {
+      try {
+        const syncColor = window.api.getAccentColorSync()
+        if (syncColor) initialColor = syncColor
+      } catch (e) {
+        console.error('Failed to get synchronous accent color:', e)
+      }
+    }
+    const clean = initialColor.replace('#', '')
+    applyAccentPalette(clean)
+    return clean
+  })
   const [activeToast, setActiveToast] = useState(null)
 
 
@@ -257,12 +270,6 @@ const App = () => {
       const clean = (useWindows ? (hex || DEFAULT_ACCENT) : DEFAULT_ACCENT).replace('#', '')
       setAccentHex(clean)
       applyAccentPalette(clean)
-    }
-
-    if (window.api?.getAccentColor) {
-      window.api.getAccentColor().then(applyColor).catch(() => applyColor(DEFAULT_ACCENT))
-    } else {
-      applyColor(DEFAULT_ACCENT)
     }
 
     let unsub
@@ -693,7 +700,7 @@ const App = () => {
           {showAboutModal && (
             <AboutModal
               accentHex={accentHex}
-              version="1.0.6"
+              version="1.0.7"
               onClose={() => setShowAboutModal(false)}
             />
           )}
