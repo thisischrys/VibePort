@@ -20,13 +20,15 @@ const Sidebar = ({ size = 18, style = {} }) => (
     className="lucide lucide-sidebar"
     style={style}
   >
-    <defs>
-      <linearGradient id="sidebar-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="33.33%" stopColor="currentColor" stopOpacity="0.25" />
-        <stop offset="33.33%" stopColor="transparent" stopOpacity="0" />
-      </linearGradient>
-    </defs>
-    <rect width="18" height="18" x="3" y="3" rx="2" fill="url(#sidebar-grad)" />
+    {/* Shaded left portion representing the sidebar */}
+    <path
+      d="M 5 3 H 9 V 21 H 5 A 2 2 0 0 1 3 19 V 5 A 2 2 0 0 1 5 3 Z"
+      fill="currentColor"
+      opacity="0.25"
+      stroke="none"
+    />
+    {/* Outline frame */}
+    <rect width="18" height="18" x="3" y="3" rx="2" />
     <path d="M9 3v18" />
   </svg>
 )

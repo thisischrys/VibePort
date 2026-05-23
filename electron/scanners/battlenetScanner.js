@@ -248,7 +248,7 @@ export async function scanBattlenetLibrary() {
         writeGame(gameId, {
           added: Math.floor(Date.now() / 1000),
           developer: null,
-          executable: `battlenet://${shortcutCode}`,
+          executable: `battlenet://play/${shortcutCode}`,
           game_id: gameId,
           hidden: false,
           last_played: 0,
@@ -262,10 +262,18 @@ export async function scanBattlenetLibrary() {
         // Sync or update if needed
         try {
           const existing = JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
+          let changed = false
           if (existing.name !== displayName) {
             existing.name = displayName
+            changed = true
+          }
+          if (existing.executable === `battlenet://${shortcutCode}` || !existing.executable.startsWith('battlenet://play/')) {
+            existing.executable = `battlenet://play/${shortcutCode}`
+            changed = true
+          }
+          if (changed) {
             writeGame(gameId, existing)
-            console.log(`[AUTO-SCAN] Updated Battle.net game name to: "${displayName}"`)
+            console.log(`[AUTO-SCAN] Synced and updated Battle.net game: "${displayName}"`)
           }
         } catch (e) {
           console.error('[AUTO-SCAN] Failed to sync Battle.net game:', gameId, e.message)
