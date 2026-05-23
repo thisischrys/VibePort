@@ -19,9 +19,9 @@ export const LauncherIcon = ({ source, size = 16, color }) => {
       )
     case 'gog':
       return (
-        <svg viewBox="0 0 24 24" width={size} height={size} fill={resolvedColor} style={{ flexShrink: 0 }} xmlns="http://www.w3.org/2000/svg">
-          <title>GOG.com</title>
-          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.875 18.563v-3.75h3.75v-1.875h-3.75V9.188h5.625V7.313H8.25v11.25h5.625v-3.75H10.125z" />
+        <svg viewBox="0 0 24 24" width={size} height={size} style={{ flexShrink: 0 }} xmlns="http://www.w3.org/2000/svg">
+          <title>GOG Galaxy</title>
+          <circle cx="12" cy="12" r="8.25" stroke={resolvedColor} strokeWidth="3.5" fill="none" />
         </svg>
       )
     case 'epic':

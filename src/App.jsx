@@ -247,29 +247,6 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
             <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: '600' }}>Hidden</span>
           </div>
         )}
-
-        {/* Launcher/Platform Badge */}
-        {game.source && game.source !== 'all' && (
-          <div style={{
-            position: 'absolute',
-            top: '8px',
-            left: isHidden ? '74px' : '8px',
-            zIndex: 10,
-            backgroundColor: 'rgba(15, 12, 28, 0.7)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '50%',
-            width: '24px',
-            height: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.35)',
-            transition: 'all 0.2s ease'
-          }}>
-            <LauncherIcon source={game.source} size={13} />
-          </div>
-        )}
         <div style={styles.coverContainer}>
           {game.coverUrl && !failedCovers[game.game_id] ? (
             <img src={game.coverUrl} alt={game.name} className="cover-image" style={styles.cover}
