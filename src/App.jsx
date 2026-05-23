@@ -531,7 +531,7 @@ const App = () => {
             )}
           </div>
 
-          <div style={{ ...styles.sectionHeader, marginTop: '20px' }}>LIBRARIES</div>
+          <div style={{ ...styles.sectionHeader, marginTop: '20px' }}>Libraries</div>
           <div style={styles.sidebarNav}>
             {rawSources
               .filter(s => s !== 'imported')
