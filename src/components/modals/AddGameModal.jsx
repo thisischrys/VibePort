@@ -21,7 +21,7 @@ const AddGameModal = ({
       <div style={styles.modalHeader}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Plus size={20} color={`#${accentHex}`} />
-          <h2 style={styles.modalTitle}>Add Custom Game</h2>
+          <h2 style={styles.modalTitle}>Add Game</h2>
         </div>
         <div style={styles.closeBtn} onClick={onClose}><X size={18} /></div>
       </div>
@@ -31,7 +31,7 @@ const AddGameModal = ({
           <div style={styles.formGroup}>
             <label style={styles.formLabel}>Game Title</label>
             <input
-              type="text" className="form-input" placeholder="e.g. Rimworld"
+              type="text" className="form-input" placeholder=""
               value={formName} onChange={(e) => setFormName(e.target.value)} required
             />
           </div>
@@ -40,7 +40,7 @@ const AddGameModal = ({
             <label style={styles.formLabel}>Executable</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
-                type="text" className="form-input" placeholder='e.g. "C:\\Games\\Hades2\\Hades2.exe"'
+                type="text" className="form-input" placeholder=""
                 style={{ flex: 1 }}
                 value={formExecutable} onChange={(e) => setFormExecutable(e.target.value)} required
               />

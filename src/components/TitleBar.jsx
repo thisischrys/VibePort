@@ -153,7 +153,7 @@ export const TitleBar = ({
                   <div style={{ width: 16, display: 'flex', justifyContent: 'center' }}>
                     <PlusSquare size={16} color={`#${accentHex}`} />
                   </div>
-                  <span>Add Custom Game</span>
+                  <span>Add Game</span>
                 </div>
               </div>
               <div
