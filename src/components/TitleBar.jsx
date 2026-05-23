@@ -169,7 +169,7 @@ export const TitleBar = ({
                   <div style={{ width: 16, display: 'flex', justifyContent: 'center' }}>
                     <FolderPlus size={16} color={`#${accentHex}`} />
                   </div>
-                  <span>Scan Games Folder</span>
+                  <span>Add Folder of Games</span>
                 </div>
               </div>
             </div>
