@@ -764,7 +764,7 @@ const App = () => {
           {showAboutModal && (
             <AboutModal
               accentHex={accentHex}
-              version="1.0.9"
+              version="1.0.8"
               onClose={() => setShowAboutModal(false)}
             />
           )}
