@@ -254,13 +254,13 @@ ipcMain.handle('launch-game', async (event, executable) => {
       const launchCwd = path.isAbsolute(execPath) ? path.dirname(execPath) : undefined
 
       const child = spawn(execPath, [], {
-        shell: false, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: true
+        shell: false, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
       })
 
       child.on('error', () => {
         // Fallback to shell: true for edge cases (batch files, etc.)
         const fallback = spawn(executable, [], {
-          shell: true, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: true
+          shell: true, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
         })
         fallback.unref()
         resolve(true)
@@ -435,11 +435,27 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
       const candidates = allExes.filter(exe => !ignoredKeywords.some(k => exe.name.toLowerCase().includes(k)))
       const pool = candidates.length > 0 ? candidates : allExes
 
+      const normalizeRoman = (str) => {
+        return str
+          .replace(/viii$/, '8')
+          .replace(/vii$/, '7')
+          .replace(/vi$/, '6')
+          .replace(/iii$/, '3')
+          .replace(/ii$/, '2')
+          .replace(/iv$/, '4')
+          .replace(/v$/, '5')
+          .replace(/ix$/, '9')
+          .replace(/x$/, '10')
+      }
+
       let selectedExe
       const stripped = cleanDirName.replace(/[^a-z0-9]/g, '')
+      const strippedNorm = normalizeRoman(stripped)
       const directMatches = pool.filter(exe => {
         const clean = exe.name.toLowerCase().replace('.exe', '').replace(/[^a-z0-9]/g, '')
-        return clean.includes(stripped) || stripped.includes(clean)
+        const cleanNorm = normalizeRoman(clean)
+        return clean.includes(stripped) || stripped.includes(clean) ||
+               cleanNorm.includes(strippedNorm) || strippedNorm.includes(cleanNorm)
       })
 
       if (directMatches.length === 1) selectedExe = directMatches[0]

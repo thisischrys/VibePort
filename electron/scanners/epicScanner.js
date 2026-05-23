@@ -36,7 +36,7 @@ export async function scanEpicLibrary() {
           writeGame(gameId, {
             added: Math.floor(Date.now() / 1000),
             developer: null,
-            executable: `com.epicgames.launcher://apps/${appName}?action=launch`,
+            executable: `com.epicgames.launcher://apps/${appName}?action=launch&silent=true`,
             game_id: gameId,
             hidden: false,
             last_played: 0,
