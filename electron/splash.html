@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>VibePort Launcher</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #08070d;
+      color: #f8fafc;
+      font-family: 'Outfit', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      box-sizing: border-box;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      -webkit-app-region: drag;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .logo-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .logo-glow {
+      position: absolute;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: var(--accent-color, #8b5cf6);
+      filter: blur(60px);
+      opacity: 0.3;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .title {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin: 0;
+      z-index: 1;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+    .subtitle {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent-color, #c084fc);
+      opacity: 0.8;
+      margin-top: 6px;
+      z-index: 1;
+    }
+    .status {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 16px;
+      height: 20px;
+      z-index: 1;
+      transition: all 0.2s ease;
+    }
+    .progress-container {
+      width: 75%;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 99px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      z-index: 1;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: var(--accent-color, #8b5cf6);
+      border-radius: 99px;
+      box-shadow: 0 0 12px var(--accent-color, #8b5cf6);
+      transition: width 0.15s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo-glow" id="glow"></div>
+  <div class="logo-container">
+    <h1 class="title">VibePort</h1>
+    <span class="subtitle">Game Launcher</span>
+  </div>
+  <div class="status" id="status-text">Checking for updates...</div>
+  <div class="progress-container">
+    <div class="progress-bar" id="bar"></div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    // Handle accent color update
+    ipcRenderer.on('set-accent-color', (event, color) => {
+      const hex = color.startsWith('#') ? color : '#' + color;
+      document.documentElement.style.setProperty('--accent-color', hex);
+    });
+
+    // Handle status update
+    ipcRenderer.on('update-status', (event, text) => {
+      document.getElementById('status-text').innerText = text;
+    });
+
+    // Handle progress update
+    ipcRenderer.on('update-progress', (event, percent) => {
+      const percentage = Math.min(Math.max(percent, 0), 100);
+      document.getElementById('bar').style.width = percentage + '%';
+    });
+  </script>
+</body>
+</html>

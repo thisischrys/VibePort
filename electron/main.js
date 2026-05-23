@@ -37,6 +37,7 @@ if (!gotTheLock) {
 }
 
 let mainWindow = null
+let splashWindow = null
 let lastAccentColor = null
 
 // ─── Renderer Notification Helper ────────────────────────────────────────────
@@ -56,7 +57,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       sandbox: false
     },
-    autoHideMenuBar: true
+    autoHideMenuBar: true,
+    show: false
   })
 
   mainWindow.setMenu(null)
@@ -77,6 +79,45 @@ function createWindow() {
   })
 
   mainWindow.on('closed', () => { mainWindow = null })
+}
+
+function createSplashWindow() {
+  const accentColor = lastAccentColor || '8b5cf6'
+  
+  splashWindow = new BrowserWindow({
+    width: 480,
+    height: 300,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    center: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  })
+
+  const splashPath = path.join(__dirname, 'splash.html')
+  splashWindow.loadFile(splashPath)
+
+  splashWindow.webContents.on('did-finish-load', () => {
+    splashWindow.webContents.send('set-accent-color', accentColor)
+  })
+
+  splashWindow.on('closed', () => {
+    splashWindow = null
+  })
+}
+
+function launchApp() {
+  if (splashWindow) {
+    try { splashWindow.close() } catch (e) { console.error(e) }
+  }
+  if (mainWindow) {
+    mainWindow.show()
+    mainWindow.focus()
+  }
 }
 
 // ─── IPC: Games ───────────────────────────────────────────────────────────────
@@ -521,44 +562,78 @@ app.whenReady().then(() => {
     }
   })
 
-  createWindow()
-  
-  // Check for updates automatically on start
-  autoUpdater.checkForUpdates()
-
-  autoUpdater.on('update-downloaded', (info) => {
+  // Retrieve initial Windows accent color first
+  if (process.platform === 'win32' && systemPreferences.getAccentColor) {
     try {
-      const notification = new Notification({
-        title: 'VibePort Update Ready',
-        body: `VibePort version ${info.version} has been downloaded and will be automatically installed on exit.`
-      })
-      notification.show()
+      const raw = systemPreferences.getAccentColor()
+      lastAccentColor = raw.length === 8 ? raw.slice(0, 6) : raw
     } catch (e) {
-      console.error('Failed to show update notification:', e)
+      console.error('Failed to get initial accent color:', e)
+    }
+  }
+
+  // Push live accent color updates to renderer when user changes Windows theme
+  if (process.platform === 'win32' && systemPreferences.on) {
+    systemPreferences.on('accent-color-changed', (event, newColor) => {
+      lastAccentColor = newColor
+      if (mainWindow) mainWindow.webContents.send('accent-color-changed', newColor)
+      if (splashWindow) splashWindow.webContents.send('set-accent-color', newColor)
+    })
+  }
+
+  // Initialize both windows
+  createSplashWindow()
+  createWindow()
+
+  // Configure AutoUpdater
+  autoUpdater.autoDownload = true
+
+  autoUpdater.on('checking-for-update', () => {
+    if (splashWindow) splashWindow.webContents.send('update-status', 'Checking for updates...')
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    if (splashWindow) {
+      splashWindow.webContents.send('update-status', `Update v${info.version} available! Downloading...`)
     }
   })
 
-  // Delay auto-scan by 2s to let the window finish rendering first
-  setTimeout(runAutoScan, 2000)
+  autoUpdater.on('update-not-available', () => {
+    if (splashWindow) splashWindow.webContents.send('update-status', 'VibePort is up to date!')
+    setTimeout(launchApp, 1200)
+  })
 
-  // Push live accent color updates to renderer when user changes Windows theme
-  if (process.platform === 'win32') {
-    if (systemPreferences.getAccentColor) {
-      try {
-        const raw = systemPreferences.getAccentColor()
-        lastAccentColor = raw.length === 8 ? raw.slice(0, 6) : raw
-      } catch (e) {
-        console.error('Failed to get initial accent color:', e)
-      }
+  autoUpdater.on('download-progress', (progressObj) => {
+    if (splashWindow) {
+      const percent = progressObj.percent || 0
+      splashWindow.webContents.send('update-progress', percent)
+      splashWindow.webContents.send('update-status', `Downloading update: ${Math.round(percent)}%`)
     }
+  })
 
-    if (systemPreferences.on) {
-      systemPreferences.on('accent-color-changed', (event, newColor) => {
-        lastAccentColor = newColor
-        if (mainWindow) mainWindow.webContents.send('accent-color-changed', newColor)
-      })
+  autoUpdater.on('update-downloaded', (info) => {
+    if (splashWindow) {
+      splashWindow.webContents.send('update-progress', 100)
+      splashWindow.webContents.send('update-status', 'Update downloaded! Restarting...')
     }
-  }
+    setTimeout(() => {
+      autoUpdater.quitAndInstall()
+    }, 1500)
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('AutoUpdater error:', err)
+    if (splashWindow) {
+      splashWindow.webContents.send('update-status', 'Launching VibePort...')
+    }
+    setTimeout(launchApp, 1200)
+  })
+
+  // Start the update check
+  autoUpdater.checkForUpdates().catch((err) => {
+    console.error('Failed to trigger update check:', err)
+    launchApp()
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
