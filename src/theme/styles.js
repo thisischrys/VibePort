@@ -203,6 +203,7 @@ export const styles = {
     display: 'flex',
     flexDirection: 'row',
     width: '200%',
+    height: '100%',
     flex: 1,
     minHeight: 0,
     transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
