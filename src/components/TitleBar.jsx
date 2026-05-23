@@ -1,9 +1,35 @@
 import React, { useEffect, useState, useRef } from 'react'
 import {
-  Sidebar, Plus, PlusSquare, FolderPlus, Search, X,
+  Plus, PlusSquare, FolderPlus, Search, X,
   Menu, ChevronRight, ChevronLeft, Loader2, Check, Info
 } from 'lucide-react'
 import { styles } from '../theme/styles.js'
+
+// Shaded sidebar toggle icon reminiscent of the app window
+const Sidebar = ({ size = 18, style = {} }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="lucide lucide-sidebar"
+    style={style}
+  >
+    <defs>
+      <linearGradient id="sidebar-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="33.33%" stopColor="currentColor" stopOpacity="0.25" />
+        <stop offset="33.33%" stopColor="transparent" stopOpacity="0" />
+      </linearGradient>
+    </defs>
+    <rect width="18" height="18" x="3" y="3" rx="2" fill="url(#sidebar-grad)" />
+    <path d="M9 3v18" />
+  </svg>
+)
 
 const SORT_OPTIONS = [
   { label: 'A-Z', value: 'alphabetical' },

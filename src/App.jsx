@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play, Search, LayoutGrid, CheckCircle2, AlertCircle,
   Plus, EyeOff, Edit3, Info, X, Check, Loader2,
-  Menu, ChevronRight, ChevronLeft, Sidebar,
+  Menu, ChevronRight, ChevronLeft,
   FolderPlus, PlusSquare
 } from 'lucide-react'
 
