@@ -4,7 +4,7 @@ import {
   Play, Search, LayoutGrid, CheckCircle2, AlertCircle,
   Plus, EyeOff, Edit3, Info, X, Check, Loader2,
   Menu, ChevronRight, ChevronLeft,
-  FolderPlus, PlusSquare
+  FolderPlus, PlusSquare, MoreVertical
 } from 'lucide-react'
 
 import { styles } from './theme/styles.js'
@@ -214,53 +214,176 @@ function sortGames(games, sortBy) {
 
 // ─── GameCard ─────────────────────────────────────────────────────────────────
 
-const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit, onImageError }) => (
-  <motion.div
-    key={game.game_id}
-    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-    transition={{ duration: 0.15 }}
-    className="game-card-hover"
-    style={{ ...styles.gameCard, ...(isHidden ? { opacity: 0.8 } : {}) }}
-    onClick={(e) => onLaunch(game, e)}
-  >
-    <div className="cover-wrapper" style={styles.coverWrapper}>
-      {isHidden && (
-        <div style={{
-          position: 'absolute', top: '8px', left: '8px', zIndex: 10,
-          backgroundColor: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)',
-          border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-          padding: '3px 6px', display: 'flex', alignItems: 'center', gap: '4px',
-          boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-        }}>
-          <EyeOff size={11} color="#cbd5e1" />
-          <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: '600' }}>Hidden</span>
-        </div>
+const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit, onToggleHide, onDelete, onImageError }) => {
+  const [menuOpen, setMenuOpen] = React.useState(false)
+
+  return (
+    <motion.div
+      key={game.game_id}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="game-card-hover"
+      style={{ ...styles.gameCard, ...(isHidden ? { opacity: 0.8 } : {}) }}
+      onClick={(e) => onLaunch(game, e)}
+    >
+      {menuOpen && (
+        <div 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }}
+          onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+        />
       )}
-      <div style={styles.coverContainer}>
-        {game.coverUrl && !failedCovers[game.game_id] ? (
-          <img src={game.coverUrl} alt={game.name} className="cover-image" style={styles.cover}
-            onError={() => onImageError(game.game_id)} />
-        ) : (
-          <div style={styles.coverPlaceholder}>
-            <div style={styles.placeholderGlow} />
-            <span style={styles.placeholderText}>{game.name[0]}</span>
+
+      <div className="cover-wrapper" style={styles.coverWrapper}>
+        {isHidden && (
+          <div style={{
+            position: 'absolute', top: '8px', left: '8px', zIndex: 10,
+            backgroundColor: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
+            padding: '3px 6px', display: 'flex', alignItems: 'center', gap: '4px',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+          }}>
+            <EyeOff size={11} color="#cbd5e1" />
+            <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: '600' }}>Hidden</span>
           </div>
         )}
-        <div className="play-overlay" style={styles.playOverlay}>
-          <div className="play-button-circle" style={styles.playButtonCircle}>
-            <Play size={22} fill="#0d0b14" color="#0d0b14" style={{ marginLeft: '3px' }} />
+        <div style={styles.coverContainer}>
+          {game.coverUrl && !failedCovers[game.game_id] ? (
+            <img src={game.coverUrl} alt={game.name} className="cover-image" style={styles.cover}
+              onError={() => onImageError(game.game_id)} />
+          ) : (
+            <div style={styles.coverPlaceholder}>
+              <div style={styles.placeholderGlow} />
+              <span style={styles.placeholderText}>{game.name[0]}</span>
+            </div>
+          )}
+          <div className="play-overlay" style={styles.playOverlay}>
+            <div className="play-button-circle" style={styles.playButtonCircle}>
+              <Play size={22} fill="#0d0b14" color="#0d0b14" style={{ marginLeft: '3px' }} />
+            </div>
           </div>
-        </div>
-        <div className="edit-overlay-btn" style={styles.editActionContainer} onClick={(e) => onEdit(game, e)}>
-          <Edit3 size={14} color="#ffffff" />
+          <div 
+            className="edit-overlay-btn" 
+            style={{
+              ...styles.editActionContainer,
+              borderRadius: '50%',
+              width: '34px',
+              height: '34px',
+              backgroundColor: 'rgba(15, 12, 28, 0.65)',
+              ...(menuOpen ? { opacity: 1, transform: 'scale(1)', backgroundColor: 'rgba(255, 255, 255, 0.15)' } : {})
+            }} 
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpen(prev => !prev)
+            }}
+          >
+            <MoreVertical size={16} color="#ffffff" />
+          </div>
+
+          {menuOpen && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: '52px',
+                right: '12px',
+                width: '120px',
+                backgroundColor: 'rgba(15, 12, 28, 0.5)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '12px',
+                padding: '6px',
+                zIndex: 50,
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{
+                position: 'absolute',
+                top: '-6px',
+                right: '12px',
+                width: '10px',
+                height: '10px',
+                backgroundColor: 'rgba(15, 12, 28, 0.5)',
+                borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                transform: 'rotate(45deg)',
+                zIndex: 49
+              }} />
+
+              <div 
+                className="gtk-menu-item"
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  color: '#cbd5e1',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  zIndex: 51
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen(false)
+                  onEdit(game, e)
+                }}
+              >
+                Edit
+              </div>
+
+              <div 
+                className="gtk-menu-item"
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  color: '#cbd5e1',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  zIndex: 51
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen(false)
+                  onToggleHide(game, e)
+                }}
+              >
+                {isHidden ? 'Unhide' : 'Hide'}
+              </div>
+
+              <div 
+                className="gtk-menu-item"
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  color: '#cbd5e1',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  zIndex: 51
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen(false)
+                  onDelete(game, e)
+                }}
+              >
+                Remove
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
-    <div className="game-info" style={styles.gameInfo}>
-      <div className="game-title" style={{ ...styles.gameTitle, fontSize: cardFontSize }}>{game.name}</div>
-    </div>
-  </motion.div>
-)
+      <div className="game-info" style={styles.gameInfo}>
+        <div className="game-title" style={{ ...styles.gameTitle, fontSize: cardFontSize }}>{game.name}</div>
+      </div>
+    </motion.div>
+  )
+}
 
 
 // ─── Main App Component ───────────────────────────────────────────────────────
@@ -548,7 +671,15 @@ const App = () => {
 
   const cardFontSize = getCardFontSize()
 
-  const commonCardProps = { failedCovers, cardFontSize, onLaunch: handleLaunch, onEdit: openEditModal, onImageError: (id) => setFailedCovers(p => ({ ...p, [id]: true })) }
+  const commonCardProps = { 
+    failedCovers, 
+    cardFontSize, 
+    onLaunch: handleLaunch, 
+    onEdit: openEditModal, 
+    onToggleHide: handleToggleHideGame,
+    onDelete: handleDeleteGame,
+    onImageError: (id) => setFailedCovers(p => ({ ...p, [id]: true })) 
+  }
 
   // ── Sidebar Source Nav Items ───────────────────────────────────────────────
   const renderSidebarItem = (src, label) => {

@@ -11,6 +11,17 @@ const EditGameModal = ({
 }) => {
   const hasChanges = formName !== editingGame.name || formExecutable !== editingGame.executable
 
+  const hexToRgb = (hex) => {
+    try {
+      const r = parseInt(hex.slice(0, 2), 16)
+      const g = parseInt(hex.slice(2, 4), 16)
+      const b = parseInt(hex.slice(4, 6), 16)
+      return `${r}, ${g}, ${b}`
+    } catch {
+      return '139, 92, 246'
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -22,16 +33,61 @@ const EditGameModal = ({
         style={{ ...styles.modalContentLarge, width: '460px' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={styles.modalHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Edit3 size={20} color={`#${accentHex}`} />
-            <h2 style={styles.modalTitle}>Edit: {editingGame.name}</h2>
+        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+          <div style={{ ...styles.modalHeader, borderBottom: 'none', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px' }}>
+            <button
+              type="button"
+              className="glass-btn"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                color: '#cbd5e1',
+                zIndex: 10
+              }}
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <div style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: '15px',
+              fontWeight: '700',
+              color: '#f8fafc',
+              pointerEvents: 'none'
+            }}>
+              Game Details
+            </div>
+            <button
+              type="submit"
+              className={hasChanges ? "glass-btn glass-btn-active" : "glass-btn"}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13.5px',
+                fontWeight: '700',
+                cursor: hasChanges ? 'pointer' : 'not-allowed',
+                backgroundColor: hasChanges ? `#${accentHex}` : 'rgba(255, 255, 255, 0.04)',
+                borderColor: hasChanges ? `#${accentHex}` : 'rgba(255, 255, 255, 0.05)',
+                color: hasChanges ? '#ffffff' : 'rgba(255, 255, 255, 0.3)',
+                boxShadow: hasChanges ? `0 0 15px rgba(${hexToRgb(accentHex)}, 0.3)` : 'none',
+                opacity: hasChanges ? 1 : 0.4,
+                zIndex: 10
+              }}
+              disabled={!hasChanges}
+            >
+              Apply
+            </button>
           </div>
-          <div style={styles.closeBtn} onClick={onClose}><X size={18} /></div>
-        </div>
 
-        <div style={{ ...styles.formLayout, height: 'auto' }}>
-          <form onSubmit={onSubmit} style={styles.formLeft}>
+          <div style={{ ...styles.formLeft, padding: '12px 20px 24px 20px', gap: '16px' }}>
             <div style={styles.formGroup}>
               <label style={styles.formLabel}>Game Title</label>
               <input
@@ -71,48 +127,8 @@ const EditGameModal = ({
                 </button>
               </div>
             </div>
-
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-              <button
-                type="button"
-                className="glass-btn"
-                style={{ ...styles.formToggleBtn, flex: 1 }}
-                onClick={(e) => { onToggleHide(editingGame, e); onClose() }}
-              >
-                <EyeOff size={14} style={{ marginRight: '6px' }} />
-                Hide Game
-              </button>
-
-              {['manual', 'imported'].includes(editingGame.source) && (
-                <button
-                  type="button"
-                  className="glass-btn"
-                  style={{ ...styles.formToggleBtn, flex: 1, borderColor: 'rgba(239,68,68,0.2)' }}
-                  onClick={(e) => { onDelete(editingGame, e); onClose() }}
-                >
-                  <Trash2 size={14} color="#f87171" style={{ marginRight: '6px' }} />
-                  <span style={{ color: '#f87171' }}>Delete Game</span>
-                </button>
-              )}
-            </div>
-
-            <div style={styles.formActions}>
-              <button type="button" className="glass-btn" style={styles.formBtnSec} onClick={onClose}>Cancel</button>
-              <button
-                type="submit"
-                className={hasChanges ? "glass-btn glass-btn-active" : "glass-btn"}
-                style={{
-                  ...styles.formBtnPri,
-                  opacity: hasChanges ? 1 : 0.4,
-                  cursor: hasChanges ? 'pointer' : 'not-allowed'
-                }}
-                disabled={!hasChanges}
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </motion.div>
     </motion.div>
   )
