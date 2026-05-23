@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPrefer
 import { autoUpdater } from 'electron-updater'
 import path from 'node:path'
 import fs from 'node:fs'
-import { spawn } from 'node:child_process'
+import { spawn, exec } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { gamesPath, coversDir, settingsPath, vibeportDir, STEAMGRIDDB_API_KEY } from './lib/paths.js'
@@ -162,10 +162,31 @@ ipcMain.handle('launch-game', async (event, executable) => {
       // Strip legacy "start " prefix if present
       if (cmd.startsWith('start ')) cmd = cmd.slice(6).trim()
 
-      // Protocol URLs (Steam, GOG Galaxy, Epic, EA, Ubisoft, Battle.net) — open via shell
+      // Battle.net special direct executable launching (remedies protocol handler issues in Windows)
+      if (cmd.startsWith('battlenet://')) {
+        let gameCode = cmd.replace('battlenet://play/', '').replace('battlenet://', '').trim()
+        exec('reg query "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Battle.net" /v "InstallLocation"', { windowsHide: true }, (error, stdout) => {
+          let bnetPath = 'C:\\Program Files (x86)\\Battle.net\\Battle.net.exe'
+          if (!error && stdout) {
+            const match = stdout.match(/InstallLocation\s+REG_SZ\s+(.+)/)
+            if (match && match[1]) {
+              bnetPath = path.join(match[1].trim(), 'Battle.net.exe')
+            }
+          }
+          console.log(`[LAUNCH] Direct Battle.net launch: "${bnetPath}" --exec="launch ${gameCode}"`)
+          const child = spawn(bnetPath, [`--exec=launch ${gameCode}`], {
+            shell: false, detached: true, stdio: 'ignore', windowsHide: true
+          })
+          child.unref()
+          resolve(true)
+        })
+        return
+      }
+
+      // Protocol URLs (Steam, GOG Galaxy, Epic, EA, Ubisoft) — open via shell
       if (cmd.startsWith('steam://') || cmd.startsWith('goggalaxy://') ||
           cmd.startsWith('com.epicgames.launcher://') || cmd.startsWith('origin2://') ||
-          cmd.startsWith('uplay://') || cmd.startsWith('battlenet://')) {
+          cmd.startsWith('uplay://')) {
         shell.openExternal(cmd).then(() => resolve(true)).catch(reject)
         return
       }
