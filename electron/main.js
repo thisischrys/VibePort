@@ -247,27 +247,32 @@ ipcMain.handle('launch-game', async (event, executable) => {
         return
       }
 
-      // Direct file path — strip surrounding quotes then spawn directly
+      // Direct file path — strip surrounding quotes then launch
       let execPath = cmd
       if (execPath.startsWith('"') && execPath.endsWith('"')) execPath = execPath.slice(1, -1)
 
-      const launchCwd = path.isAbsolute(execPath) ? path.dirname(execPath) : undefined
+      shell.openPath(execPath).then((errMsg) => {
+        if (errMsg) {
+          console.warn('[LAUNCH] shell.openPath failed, falling back to spawn:', errMsg)
+          const launchCwd = path.isAbsolute(execPath) ? path.dirname(execPath) : undefined
+          const child = spawn(execPath, [], {
+            shell: false, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
+          })
 
-      const child = spawn(execPath, [], {
-        shell: false, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
-      })
-
-      child.on('error', () => {
-        // Fallback to shell: true for edge cases (batch files, etc.)
-        const fallback = spawn(executable, [], {
-          shell: true, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
-        })
-        fallback.unref()
+          child.on('error', () => {
+            // Fallback to shell: true for edge cases (batch files, etc.)
+            const fallback = spawn(executable, [], {
+              shell: true, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
+            })
+            fallback.unref()
+          })
+          child.unref()
+        }
         resolve(true)
+      }).catch((err) => {
+        console.error('[LAUNCH] shell.openPath exception:', err)
+        reject(err)
       })
-
-      child.unref()
-      resolve(true)
     } catch (error) {
       console.error('Failed to launch game:', error)
       reject(error)
@@ -406,7 +411,7 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
         if (stat.isDirectory()) {
           results = results.concat(findExecutables(filePath, depth + 1))
         } else if (file.toLowerCase().endsWith('.exe')) {
-          results.push({ path: filePath, name: file, size: stat.size })
+          results.push({ path: filePath, name: file, size: stat.size, depth })
         }
       }
       return results
@@ -458,9 +463,17 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
                cleanNorm.includes(strippedNorm) || strippedNorm.includes(cleanNorm)
       })
 
-      if (directMatches.length === 1) selectedExe = directMatches[0]
-      else if (directMatches.length > 1) selectedExe = directMatches.reduce((a, b) => b.size > a.size ? b : a)
-      else selectedExe = pool.reduce((a, b) => b.size > a.size ? b : a)
+      if (directMatches.length === 1) {
+        selectedExe = directMatches[0]
+      } else if (directMatches.length > 1) {
+        const minDepth = Math.min(...directMatches.map(e => e.depth))
+        const minDepthPool = directMatches.filter(e => e.depth === minDepth)
+        selectedExe = minDepthPool.reduce((a, b) => b.size > a.size ? b : a)
+      } else {
+        const minDepth = Math.min(...pool.map(e => e.depth))
+        const minDepthPool = pool.filter(e => e.depth === minDepth)
+        selectedExe = minDepthPool.reduce((a, b) => b.size > a.size ? b : a)
+      }
 
       if (selectedExe) {
         const gameId = `imported_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
