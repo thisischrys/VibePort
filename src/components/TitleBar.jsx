@@ -264,9 +264,7 @@ export const TitleBar = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '16px', display: 'flex', justifyContent: 'center' }}>
-                        <Info size={14} color={`#${accentHex}`} />
-                      </div>
+                      <div style={{ width: '16px' }} />
                       <span>About VibePort</span>
                     </div>
                   </div>

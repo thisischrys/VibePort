@@ -44,25 +44,7 @@ const AboutModal = ({ accentHex, version, onClose }) => (
         <X size={18} />
       </div>
 
-      {/* Cartridge Icon with Hover Spin and Glowing Glow */}
-      <motion.div
-        whileHover={{ rotate: 10, scale: 1.05 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 10 }}
-        style={{
-          width: '72px',
-          height: '72px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--accent-bg-faint)',
-          border: '1.5px solid var(--accent-border-strong)',
-          borderRadius: '16px',
-          boxShadow: '0 0 25px var(--accent-glow-strong)',
-          marginBottom: '8px'
-        }}
-      >
-        <CartridgeIcon size={38} color={`#${accentHex}`} />
-      </motion.div>
+
 
       {/* Title & Version Info */}
       <div>
