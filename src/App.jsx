@@ -380,21 +380,20 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
 
         {/* Integrated Title Bar at the Bottom of the Card Wrapper */}
         <div style={{
-          padding: '12px 14px',
+          padding: '12px 12px',
           backgroundColor: 'rgba(255, 255, 255, 0.03)',
           borderTop: '1px solid rgba(255, 255, 255, 0.02)',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
-          minHeight: '44px'
+          justifyContent: 'center'
         }}>
           <div className="game-title" style={{ 
             ...styles.gameTitle, 
-            fontSize: cardFontSize,
+            fontSize: '13px',
             margin: 0,
-            color: '#e2e8f0',
-            fontWeight: '600',
-            letterSpacing: '-0.2px'
+            color: '#cbd5e1',
+            fontWeight: '500',
+            letterSpacing: '-0.1px'
           }}>
             {game.name}
           </div>
