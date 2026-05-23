@@ -4,7 +4,6 @@ import {
   Menu, ChevronRight, ChevronLeft, Loader2, Check, Info
 } from 'lucide-react'
 import { styles } from '../theme/styles.js'
-import { LauncherIcon } from './LauncherIcon.jsx'
 
 const SORT_OPTIONS = [
   { label: 'A-Z', value: 'alphabetical' },
@@ -463,13 +462,9 @@ export const TitleBar = ({
               fontWeight: '700',
               color: '#cbd5e1',
               letterSpacing: '-0.3px',
-              WebkitAppRegion: 'drag',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
+              WebkitAppRegion: 'drag'
             }}>
-              <LauncherIcon source={showHidden ? 'hidden' : selectedSource} size={15} color={`#${accentHex}`} />
-              <span>{activeTitle}</span>
+              {activeTitle}
             </div>
 
             {/* Search, Menu, and Window Controls */}
@@ -531,13 +526,9 @@ export const TitleBar = ({
             fontWeight: '700',
             color: '#cbd5e1',
             letterSpacing: '-0.3px',
-            WebkitAppRegion: 'drag',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
+            WebkitAppRegion: 'drag'
           }}>
-            <LauncherIcon source={showHidden ? 'hidden' : selectedSource} size={15} color={`#${accentHex}`} />
-            <span>{activeTitle}</span>
+            {activeTitle}
           </div>
 
           {/* Search, Menu, and Window Controls (Pushed to far right) */}
