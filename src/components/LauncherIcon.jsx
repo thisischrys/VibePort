@@ -1,10 +1,12 @@
 import React from 'react'
-import { LayoutGrid, Plus, Globe } from 'lucide-react'
+import { LayoutGrid, Plus, Globe, EyeOff } from 'lucide-react'
 
 export const LauncherIcon = ({ source, size = 16, color = '#64748b' }) => {
   const normalized = (source || '').toLowerCase()
 
   switch (normalized) {
+    case 'hidden':
+      return <EyeOff size={size} color={color} style={{ flexShrink: 0 }} />
     case 'steam':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
