@@ -267,7 +267,7 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
             boxShadow: '0 4px 10px rgba(0, 0, 0, 0.35)',
             transition: 'all 0.2s ease'
           }}>
-            <LauncherIcon source={game.source} size={13} color="brand" />
+            <LauncherIcon source={game.source} size={13} />
           </div>
         )}
         <div style={styles.coverContainer}>
@@ -737,8 +737,8 @@ const App = () => {
           gap: '10px'
         }}
         onClick={() => setSelectedSource(src)}>
-        <div style={{ display: 'flex', alignItems: 'center', opacity: isActive ? 1 : 0.5, transition: 'opacity 0.2s ease' }} className="sidebar-icon-wrapper">
-          <LauncherIcon source={src} size={16} color="brand" />
+        <div style={{ display: 'flex', alignItems: 'center', opacity: isActive ? 1 : 0.45, transition: 'opacity 0.2s ease' }} className="sidebar-icon-wrapper">
+          <LauncherIcon source={src} size={16} />
         </div>
         <span style={{ fontWeight: isActive ? '700' : '500', flexGrow: 1 }}>{label}</span>
         <span style={{ ...styles.itemCount, ...(isActive ? styles.activeItemCount : {}) }}>{count}</span>
