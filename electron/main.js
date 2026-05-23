@@ -58,7 +58,7 @@ function createWindow() {
       sandbox: false
     },
     autoHideMenuBar: true,
-    show: false
+    show: true
   })
 
   mainWindow.setMenu(null)
@@ -98,7 +98,10 @@ function createSplashWindow() {
     }
   })
 
-  const splashPath = path.join(__dirname, 'splash.html')
+  let splashPath = path.join(__dirname, 'splash.html')
+  if (process.env.VITE_DEV_SERVER_URL) {
+    splashPath = path.join(__dirname, '../electron/splash.html')
+  }
   splashWindow.loadFile(splashPath)
 
   splashWindow.webContents.on('did-finish-load', () => {
@@ -581,26 +584,36 @@ app.whenReady().then(() => {
     })
   }
 
-  // Initialize both windows
-  createSplashWindow()
+  // Initialize main window immediately
   createWindow()
 
   // Configure AutoUpdater
   autoUpdater.autoDownload = true
 
   autoUpdater.on('checking-for-update', () => {
-    if (splashWindow) splashWindow.webContents.send('update-status', 'Checking for updates...')
+    console.log('[UPDATE] Checking for updates in the background...')
   })
 
   autoUpdater.on('update-available', (info) => {
-    if (splashWindow) {
-      splashWindow.webContents.send('update-status', `Update v${info.version} available! Downloading...`)
+    console.log(`[UPDATE] Update v${info.version} available. Activating splash screen...`)
+    if (mainWindow) {
+      mainWindow.hide() // Transition main window out
     }
+    if (!splashWindow) {
+      createSplashWindow()
+    }
+    // Update splash status
+    setTimeout(() => {
+      if (splashWindow) {
+        splashWindow.webContents.send('update-status', `Update v${info.version} available! Downloading...`)
+      }
+    }, 500)
   })
 
   autoUpdater.on('update-not-available', () => {
-    if (splashWindow) splashWindow.webContents.send('update-status', 'VibePort is up to date!')
-    setTimeout(launchApp, 1200)
+    console.log('[UPDATE] No update available. Enjoy playing!')
+    // Delay auto-scan by 2s to let the window finish rendering first
+    setTimeout(runAutoScan, 2000)
   })
 
   autoUpdater.on('download-progress', (progressObj) => {
@@ -622,17 +635,22 @@ app.whenReady().then(() => {
   })
 
   autoUpdater.on('error', (err) => {
-    console.error('AutoUpdater error:', err)
+    console.error('[UPDATE] AutoUpdater error:', err)
     if (splashWindow) {
-      splashWindow.webContents.send('update-status', 'Launching VibePort...')
+      splashWindow.close()
+      if (mainWindow) {
+        mainWindow.show()
+        mainWindow.focus()
+      }
     }
-    setTimeout(launchApp, 1200)
+    // Ensure scanning starts if it didn't already
+    setTimeout(runAutoScan, 2000)
   })
 
   // Start the update check
   autoUpdater.checkForUpdates().catch((err) => {
     console.error('Failed to trigger update check:', err)
-    launchApp()
+    setTimeout(runAutoScan, 2000)
   })
 
   app.on('activate', () => {
