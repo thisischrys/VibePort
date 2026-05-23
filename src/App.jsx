@@ -10,6 +10,7 @@ import {
 import { styles } from './theme/styles.js'
 import { DEFAULT_ACCENT, applyAccentPalette } from './theme/accent.js'
 import CartridgeIcon from './components/CartridgeIcon.jsx'
+import { LauncherIcon } from './components/LauncherIcon.jsx'
 import AddGameModal from './components/modals/AddGameModal.jsx'
 import EditGameModal from './components/modals/EditGameModal.jsx'
 import AboutModal from './components/modals/AboutModal.jsx'
@@ -63,7 +64,7 @@ const GLOBAL_CSS = `
 
   .gtk-menu-item:hover { background-color: rgba(255,255,255,0.05) !important; color: #f8fafc !important; }
   .sidebar-nav-item:hover { background-color: rgba(255,255,255,0.02) !important; color: #f1f5f9 !important; }
-  .sidebar-nav-item:hover svg { color: var(--accent) !important; }
+  .sidebar-nav-item:hover .sidebar-icon-wrapper { opacity: 0.95 !important; }
 
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -244,6 +245,29 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
           }}>
             <EyeOff size={11} color="#cbd5e1" />
             <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: '600' }}>Hidden</span>
+          </div>
+        )}
+
+        {/* Launcher/Platform Badge */}
+        {game.source && game.source !== 'all' && (
+          <div style={{
+            position: 'absolute',
+            top: '8px',
+            left: isHidden ? '74px' : '8px',
+            zIndex: 10,
+            backgroundColor: 'rgba(15, 12, 28, 0.7)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '50%',
+            width: '24px',
+            height: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.35)',
+            transition: 'all 0.2s ease'
+          }}>
+            <LauncherIcon source={game.source} size={13} color="brand" />
           </div>
         )}
         <div style={styles.coverContainer}>
@@ -705,9 +729,18 @@ const App = () => {
     const count = src === 'all' ? activeGames.length : activeGames.filter(g => g.source === src).length
     return (
       <div key={src} className={isActive ? '' : 'sidebar-nav-item'}
-        style={{ ...styles.sidebarItem, ...(isActive ? styles.activeSidebarItem : {}) }}
+        style={{ 
+          ...styles.sidebarItem, 
+          ...(isActive ? styles.activeSidebarItem : {}),
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}
         onClick={() => setSelectedSource(src)}>
-        <span style={{ fontWeight: isActive ? '700' : '500' }}>{label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', opacity: isActive ? 1 : 0.5, transition: 'opacity 0.2s ease' }} className="sidebar-icon-wrapper">
+          <LauncherIcon source={src} size={16} color="brand" />
+        </div>
+        <span style={{ fontWeight: isActive ? '700' : '500', flexGrow: 1 }}>{label}</span>
         <span style={{ ...styles.itemCount, ...(isActive ? styles.activeItemCount : {}) }}>{count}</span>
       </div>
     )
