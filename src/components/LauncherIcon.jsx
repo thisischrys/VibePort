@@ -1,5 +1,5 @@
 import React from 'react'
-import { LayoutGrid, Plus, Globe, EyeOff } from 'lucide-react'
+import { LayoutGrid, Plus, EyeOff } from 'lucide-react'
 
 export const LauncherIcon = ({ source, size = 16, color = '#64748b' }) => {
   const normalized = (source || '').toLowerCase()
@@ -9,55 +9,71 @@ export const LauncherIcon = ({ source, size = 16, color = '#64748b' }) => {
       return <EyeOff size={size} color={color} style={{ flexShrink: 0 }} />
     case 'steam':
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <circle cx="12" cy="12" r="10" />
-          <circle cx="12" cy="12" r="3" />
-          <path d="M6 12a6 6 0 0 1 12 0" />
-          <path d="M9 12l2-2" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          {/* Steam Logo: Interlocking crank wheel and arm */}
+          <circle cx="8" cy="15" r="4.5" />
+          <circle cx="8" cy="15" r="1.5" fill={color} />
+          <circle cx="16" cy="8" r="3" />
+          <circle cx="16" cy="8" r="1" fill={color} />
+          <path d="M12 11.2l2.4-2.4" />
+          <path d="M8.8 10.8l5.2-5.2" />
         </svg>
       )
     case 'gog':
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          {/* Stylized GOG starry galaxy stars constellation */}
-          <path d="M12 3l1.5 3.5h3.5l-2.8 2.2L15 12.2l-3-2.2-3 2.2.8-3.5-2.8-2.2h3.5z" />
-          <path d="M5 16l.8 1.8 1.8.2-1.4 1 1.4 1.8-1.6-1.1L2.4 21l.7-1.8-1.5-1 1.8-.2z" />
-          <path d="M19 16l.8 1.8 1.8.2-1.4 1 1.4 1.8-1.6-1.1L16.4 21l.7-1.8-1.5-1 1.8-.2z" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          {/* GOG Galaxy: Stylized primary star surrounded by constellation nodes */}
+          <path d="M12 4.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" />
+          <circle cx="5" cy="8" r="0.8" fill={color} />
+          <circle cx="19" cy="8" r="0.8" fill={color} />
+          <circle cx="6" cy="16" r="0.8" fill={color} />
+          <circle cx="18" cy="16" r="0.8" fill={color} />
+          <circle cx="12" cy="19.5" r="0.8" fill={color} />
         </svg>
       )
     case 'epic':
     case 'epic games':
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          {/* Epic shield / diamond outline with inner E */}
-          <path d="M12 2L3 5v6c0 5.5 4.5 10 9 11 4.5-1 9-5.5 9-11V5l-9-3z" />
-          <path d="M9 8h6M9 12h4M9 16h6" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          {/* Epic Games: Sleek double-bordered hex diamond shield with internal E */}
+          <path d="M12 2L4.5 5.5v6.5c0 4.8 7.5 9 7.5 9s7.5-4.2 7.5-9V5.5L12 2z" />
+          <path d="M9.5 8h4.5v1.2H9.5v1.2h3.5v1.2h-3.5v1.2H14v1.2H8.5V8z" />
         </svg>
       )
     case 'ea':
     case 'ea app':
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          {/* Stylized E and A chevrons */}
-          <path d="M4 6h12M4 12h9M4 18h12M15 18l5-12 1 2.5" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          {/* EA App: Stylized script EA letters in circle */}
+          <circle cx="12" cy="12" r="10" />
+          <path d="M6.5 15V9h4M6.5 12h3M6.5 15H11m2.5 0l2.5-6 2.5 6M14.2 13h3.6" />
         </svg>
       )
     case 'ubisoft':
     case 'ubisoft connect':
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          {/* Concentric spiral representing UbisoftConnect spiral swirl */}
-          <path d="M12 2a10 10 0 1 0 10 10c0-2.8-1.1-5.3-3-7.1M12 6a6 6 0 1 0 6 6c0-1.6-.6-3.2-1.8-4.2M12 10a2 2 0 1 0 2 2" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          {/* Ubisoft swirl concentric portal */}
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6.5a5.5 5.5 0 1 0 5.5 5.5c0-2.3-1.4-4.1-3.2-4.9a3.2 3.2 0 1 0-4.1 4.1" />
         </svg>
       )
     case 'battlenet':
     case 'battle.net':
       return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          {/* Stylized battle.net concentric arches */}
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          {/* Battle.net: Triple radiating node connections inside a outer ring */}
           <circle cx="12" cy="12" r="10" />
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v6M12 16v6M2 12h6M16 12h6" />
+          <circle cx="12" cy="12" r="2.2" fill={color} />
+          
+          <line x1="12" y1="9.8" x2="12" y2="5.5" />
+          <circle cx="12" cy="5.5" r="1.3" fill={color} />
+          
+          <line x1="10.1" y1="13.1" x2="6.3" y2="15.3" />
+          <circle cx="6.3" cy="15.3" r="1.3" fill={color} />
+          
+          <line x1="13.9" y1="13.1" x2="17.7" y2="15.3" />
+          <circle cx="17.7" cy="15.3" r="1.3" fill={color} />
         </svg>
       )
     case 'imported':
