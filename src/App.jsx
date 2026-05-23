@@ -13,7 +13,7 @@ import CartridgeIcon from './components/CartridgeIcon.jsx'
 import AddGameModal from './components/modals/AddGameModal.jsx'
 import EditGameModal from './components/modals/EditGameModal.jsx'
 import AboutModal from './components/modals/AboutModal.jsx'
-
+import packageJson from '../package.json'
 
 import { TitleBar } from './components/TitleBar.jsx'
 
@@ -764,7 +764,7 @@ const App = () => {
           {showAboutModal && (
             <AboutModal
               accentHex={accentHex}
-              version="1.0.11"
+              version={packageJson.version}
               onClose={() => setShowAboutModal(false)}
             />
           )}
