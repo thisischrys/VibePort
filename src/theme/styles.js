@@ -152,11 +152,11 @@ export const styles = {
     letterSpacing: '0.5px',
   },
   sectionHeader: {
-    fontSize: '10px',
-    fontWeight: '800',
-    color: '#475569',
-    letterSpacing: '1.5px',
-    padding: '0 24px 10px 24px',
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: '0.5px',
+    padding: '0 26px 10px 26px',
   },
   sidebarNav: {
     display: 'flex',
