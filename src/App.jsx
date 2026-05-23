@@ -93,6 +93,75 @@ const GLOBAL_CSS = `
     background-color: rgba(239, 68, 68, 0.85) !important;
     color: #ffffff !important;
   }
+
+  /* Grid and Card sizing system */
+  .game-grid {
+    display: grid !important;
+    gap: 28px;
+    grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+  }
+
+  .grid-container {
+    padding: 32px;
+  }
+
+  /* Vertical resizing constraints for game cards and grids */
+  @media (max-height: 800px) {
+    .grid-container {
+      padding: 20px !important;
+    }
+    .game-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)) !important;
+      gap: 20px !important;
+    }
+    .game-card-hover {
+      max-width: 160px !important;
+    }
+    .game-info {
+      margin-top: 8px !important;
+    }
+    .game-title {
+      font-size: 13px !important;
+    }
+  }
+
+  @media (max-height: 600px) {
+    .grid-container {
+      padding: 16px !important;
+    }
+    .game-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr)) !important;
+      gap: 14px !important;
+    }
+    .game-card-hover {
+      max-width: 120px !important;
+    }
+    .game-info {
+      margin-top: 6px !important;
+    }
+    .game-title {
+      font-size: 11px !important;
+    }
+  }
+
+  @media (max-height: 450px) {
+    .grid-container {
+      padding: 10px !important;
+    }
+    .game-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(90px, 100%), 1fr)) !important;
+      gap: 10px !important;
+    }
+    .game-card-hover {
+      max-width: 100px !important;
+    }
+    .game-info {
+      margin-top: 4px !important;
+    }
+    .game-title {
+      font-size: 9.5px !important;
+    }
+  }
 `
 
 // ─── Source Label Mapping ─────────────────────────────────────────────────────
@@ -112,7 +181,6 @@ const getSourceLabel = (src) => {
 }
 
 // ─── Card Sizing ──────────────────────────────────────────────────────────────
-const getGridColumns = () => 'repeat(auto-fill, minmax(min(180px, 100%), 1fr))'
 const getCardFontSize = () => '15.5px'
 
 // ─── Sorting ──────────────────────────────────────────────────────────────────
@@ -188,7 +256,7 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
         </div>
       </div>
     </div>
-    <div style={styles.gameInfo}>
+    <div className="game-info" style={styles.gameInfo}>
       <div className="game-title" style={{ ...styles.gameTitle, fontSize: cardFontSize }}>{game.name}</div>
     </div>
   </motion.div>
@@ -479,7 +547,6 @@ const App = () => {
   const sortedHiddenGames = sortGames(filterGames(games.filter(g => g.hidden)), sortBy)
 
   const cardFontSize = getCardFontSize()
-  const gridCols = getGridColumns()
 
   const commonCardProps = { failedCovers, cardFontSize, onLaunch: handleLaunch, onEdit: openEditModal, onImageError: (id) => setFailedCovers(p => ({ ...p, [id]: true })) }
 
@@ -627,7 +694,7 @@ const App = () => {
 
             {/* ── PANEL 1: Library ──────────────────────────────────────── */}
             <div style={styles.mainPanel}>
-              <div style={styles.gridContainer}>
+              <div className="grid-container" style={styles.gridContainer}>
 
 
                 {loading ? (
@@ -639,7 +706,7 @@ const App = () => {
                     <div style={styles.emptyStateSub}>Double check your search text or switch libraries.</div>
                   </div>
                 ) : (
-                  <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
+                  <div className="game-grid" style={styles.grid}>
                     {sortedVisibleGames.map(game => (
                       <GameCard key={game.game_id} game={game} isHidden={false} {...commonCardProps} />
                     ))}
@@ -650,7 +717,7 @@ const App = () => {
 
             {/* ── PANEL 2: Hidden Games ─────────────────────────────────── */}
             <div style={styles.mainPanel}>
-              <div style={styles.gridContainer}>
+              <div className="grid-container" style={styles.gridContainer}>
 
 
                 {loading ? (
@@ -662,7 +729,7 @@ const App = () => {
                     <div style={styles.emptyStateSub}>Games you hide will appear here</div>
                   </div>
                 ) : (
-                  <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
+                  <div className="game-grid" style={styles.grid}>
                     {sortedHiddenGames.map(game => (
                       <GameCard key={game.game_id} game={game} isHidden={true} {...commonCardProps} />
                     ))}
