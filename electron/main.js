@@ -630,7 +630,7 @@ app.whenReady().then(() => {
       splashWindow.webContents.send('update-status', 'Update downloaded! Restarting...')
     }
     setTimeout(() => {
-      autoUpdater.quitAndInstall()
+      autoUpdater.quitAndInstall(true, true)
     }, 1500)
   })
 
