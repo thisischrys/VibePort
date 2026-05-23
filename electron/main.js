@@ -173,8 +173,8 @@ ipcMain.handle('launch-game', async (event, executable) => {
               bnetPath = path.join(match[1].trim(), 'Battle.net.exe')
             }
           }
-          console.log(`[LAUNCH] Direct Battle.net launch: "${bnetPath}" --exec="launch ${gameCode}"`)
-          const child = spawn(bnetPath, [`--exec=launch ${gameCode}`], {
+          console.log(`[LAUNCH] Direct Battle.net launch: "${bnetPath}" --exec="launch ${gameCode}" --autostarted`)
+          const child = spawn(bnetPath, [`--exec=launch ${gameCode}`, '--autostarted'], {
             shell: false, detached: true, stdio: 'ignore', windowsHide: true
           })
           child.unref()
