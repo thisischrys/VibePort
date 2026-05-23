@@ -421,6 +421,9 @@ export const styles = {
     cursor: 'pointer',
     display: 'flex',
     flexDirection: 'column',
+    maxWidth: '220px',
+    width: '100%',
+    margin: '0 auto',
   },
   coverWrapper: {
     borderRadius: '12px',

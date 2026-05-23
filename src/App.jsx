@@ -112,7 +112,7 @@ const getSourceLabel = (src) => {
 }
 
 // ─── Card Sizing ──────────────────────────────────────────────────────────────
-const getGridColumns = () => 'repeat(auto-fill, minmax(180px, 1fr))'
+const getGridColumns = () => 'repeat(auto-fill, minmax(min(180px, 100%), 1fr))'
 const getCardFontSize = () => '15.5px'
 
 // ─── Sorting ──────────────────────────────────────────────────────────────────
