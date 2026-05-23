@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences, Notification } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'node:path'
 import fs from 'node:fs'
