@@ -24,6 +24,18 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.vibeport.app')
 }
 
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+}
+
 let mainWindow = null
 let lastAccentColor = null
 
@@ -479,6 +491,8 @@ function runAutoScan() {
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  if (!gotTheLock) return
+
   // Register media:// protocol for serving local cover images
   protocol.handle('media', async (request) => {
     try {
