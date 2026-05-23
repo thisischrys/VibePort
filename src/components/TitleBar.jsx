@@ -24,7 +24,7 @@ const Sidebar = ({ size = 18, style = {} }) => (
     <path
       d="M 5 3 H 9 V 21 H 5 A 2 2 0 0 1 3 19 V 5 A 2 2 0 0 1 5 3 Z"
       fill="currentColor"
-      opacity="0.25"
+      opacity="0.55"
       stroke="none"
     />
     {/* Outline frame */}
