@@ -233,7 +233,7 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
         />
       )}
 
-      <div className="cover-wrapper" style={styles.coverWrapper}>
+      <div className="cover-wrapper" style={{ ...styles.coverWrapper, display: 'flex', flexDirection: 'column', background: 'rgba(255, 255, 255, 0.04)' }}>
         {isHidden && (
           <div style={{
             position: 'absolute', top: '8px', left: '8px', zIndex: 10,
@@ -377,9 +377,28 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
             </div>
           )}
         </div>
-      </div>
-      <div className="game-info" style={styles.gameInfo}>
-        <div className="game-title" style={{ ...styles.gameTitle, fontSize: cardFontSize }}>{game.name}</div>
+
+        {/* Integrated Title Bar at the Bottom of the Card Wrapper */}
+        <div style={{
+          padding: '12px 14px',
+          backgroundColor: 'rgba(255, 255, 255, 0.03)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.02)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          minHeight: '44px'
+        }}>
+          <div className="game-title" style={{ 
+            ...styles.gameTitle, 
+            fontSize: cardFontSize,
+            margin: 0,
+            color: '#e2e8f0',
+            fontWeight: '600',
+            letterSpacing: '-0.2px'
+          }}>
+            {game.name}
+          </div>
+        </div>
       </div>
     </motion.div>
   )
