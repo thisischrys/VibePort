@@ -72,7 +72,10 @@ export const TitleBar = ({
   setSortBy,
   showSearch,
   setShowSearch,
-  openAboutModal
+  openAboutModal,
+  openPreferencesModal,
+  openShortcutsModal,
+  handleRunAutoScan
 }) => {
   // Window State
   const [isMaximized, setIsMaximized] = useState(false)
@@ -119,8 +122,10 @@ export const TitleBar = ({
         className="header-action"
         style={{
           ...styles.actionIconContainer,
-          backgroundColor: showPlusDropdown ? 'rgba(255,255,255,0.08)' : 'transparent',
-          borderColor: showPlusDropdown ? 'rgba(192,132,252,0.35)' : 'transparent'
+          backgroundColor: showPlusDropdown ? '#3a3a3c' : 'transparent',
+          borderColor: 'transparent',
+          borderRadius: '8px',
+          transition: 'all 0.15s ease'
         }}
         onClick={(e) => {
           e.stopPropagation()
@@ -129,32 +134,39 @@ export const TitleBar = ({
         title="Add Options"
       >
         {isScanning ? (
-          <Loader2 size={18} style={{ color: `#${accentHex}`, animation: 'spin 1s linear infinite' }} />
+          <Loader2 size={18} style={{ color: '#ffffff', animation: 'spin 1s linear infinite' }} />
         ) : (
-          <Plus size={18} style={{ color: showPlusDropdown ? `#${accentHex}` : '#cbd5e1' }} />
+          <Plus size={18} style={{ color: '#ffffff' }} />
         )}
       </div>
 
       {showPlusDropdown && (
-        <div className="gtk-popover-container" style={styles.popoverLeft}>
-          <div style={styles.popoverArrowLeft} />
+        <div className="gtk-popover-container" style={{
+          ...styles.popoverLeft,
+          left: '-10px',
+          top: '44px'
+        }}>
+          <div style={{
+            ...styles.popoverArrowLeft,
+            left: '24px'
+          }} />
           <div style={styles.popoverContent}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
               <div
                 className="gtk-menu-item"
-                style={styles.popoverItem}
+                style={{
+                  ...styles.popoverItem,
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  color: '#ffffff'
+                }}
                 onClick={(e) => {
                   e.stopPropagation()
                   openAddModal()
                   setShowPlusDropdown(false)
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: 16, display: 'flex', justifyContent: 'center' }}>
-                    <PlusSquare size={16} color={`#${accentHex}`} />
-                  </div>
-                  <span>Add Game</span>
-                </div>
+                <span>Add Game</span>
+                <span style={styles.popoverShortcut}>Ctrl+N</span>
               </div>
               <div
                 className="gtk-menu-item"
@@ -165,12 +177,21 @@ export const TitleBar = ({
                   setShowPlusDropdown(false)
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: 16, display: 'flex', justifyContent: 'center' }}>
-                    <FolderPlus size={16} color={`#${accentHex}`} />
-                  </div>
-                  <span>Add Folder of Games</span>
-                </div>
+                <span>Scan Games</span>
+                <span style={styles.popoverShortcut}>Ctrl+G</span>
+              </div>
+              <div style={styles.popoverSeparator} />
+              <div
+                className="gtk-menu-item"
+                style={styles.popoverItem}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleRunAutoScan()
+                  setShowPlusDropdown(false)
+                }}
+              >
+                <span>Import</span>
+                <span style={styles.popoverShortcut}>Ctrl+I</span>
               </div>
             </div>
           </div>
@@ -187,7 +208,9 @@ export const TitleBar = ({
         style={{
           ...styles.actionIconContainer,
           backgroundColor: showSearch ? 'rgba(255,255,255,0.08)' : 'transparent',
-          borderColor: showSearch ? 'rgba(192,132,252,0.35)' : 'transparent'
+          borderColor: 'transparent',
+          borderRadius: '8px',
+          transition: 'all 0.15s ease'
         }}
         onClick={(e) => {
           e.stopPropagation()
@@ -195,7 +218,7 @@ export const TitleBar = ({
         }}
         title="Search Games"
       >
-        <Search size={18} style={{ color: showSearch ? `#${accentHex}` : '#cbd5e1' }} />
+        <Search size={18} style={{ color: showSearch ? '#ffffff' : '#cbd5e1' }} />
       </div>
 
       {/* Main Menu Button */}
@@ -204,8 +227,10 @@ export const TitleBar = ({
           className="header-action"
           style={{
             ...styles.actionIconContainer,
-            backgroundColor: showMenu ? 'rgba(255,255,255,0.08)' : 'transparent',
-            borderColor: showMenu ? 'rgba(192,132,252,0.35)' : 'transparent'
+            backgroundColor: showMenu ? '#3a3a3c' : 'transparent',
+            borderColor: 'transparent',
+            borderRadius: '8px',
+            transition: 'all 0.15s ease'
           }}
           onClick={(e) => {
             e.stopPropagation()
@@ -214,28 +239,36 @@ export const TitleBar = ({
           }}
           title="Main Menu"
         >
-          <Menu size={18} style={{ color: showMenu ? `#${accentHex}` : '#cbd5e1' }} />
+          <Menu size={18} style={{ color: '#ffffff' }} />
         </div>
 
         {showMenu && (
-          <div className="gtk-popover-container" style={styles.popover}>
-            <div style={styles.popoverArrow} />
+          <div className="gtk-popover-container" style={{
+            ...styles.popover,
+            right: '-10px',
+            top: '44px'
+          }}>
+            <div style={{
+              ...styles.popoverArrow,
+              right: '24px'
+            }} />
             <div style={styles.popoverContent}>
               {menuPanel === 'main' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   <div
                     className="gtk-menu-item"
-                    style={styles.popoverItem}
+                    style={{
+                      ...styles.popoverItem,
+                      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                      color: '#ffffff'
+                    }}
                     onClick={(e) => {
                       e.stopPropagation()
                       setMenuPanel('sort')
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '16px' }} />
-                      <span>Sort</span>
-                    </div>
-                    <ChevronRight size={14} color="#94a3b8" />
+                    <span>Sort</span>
+                    <ChevronRight size={14} color="#8e8e93" />
                   </div>
                   <div
                     className="gtk-menu-item"
@@ -246,13 +279,33 @@ export const TitleBar = ({
                       setShowMenu(false)
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '16px', display: 'flex', justifyContent: 'center' }}>
-                        {showHidden && <Check size={14} color={`#${accentHex}`} strokeWidth={2.5} />}
-                      </div>
-                      <span>Show Hidden</span>
-                    </div>
+                    <span>Show Hidden</span>
                     <span style={styles.popoverShortcut}>Ctrl+H</span>
+                  </div>
+                  <div style={styles.popoverSeparator} />
+                  <div
+                    className="gtk-menu-item"
+                    style={styles.popoverItem}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openPreferencesModal()
+                      setShowMenu(false)
+                    }}
+                  >
+                    <span>Preferences</span>
+                    <span style={styles.popoverShortcut}>Ctrl+,</span>
+                  </div>
+                  <div
+                    className="gtk-menu-item"
+                    style={styles.popoverItem}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openShortcutsModal()
+                      setShowMenu(false)
+                    }}
+                  >
+                    <span>Keyboard Shortcuts</span>
+                    <span style={styles.popoverShortcut}>Ctrl+?</span>
                   </div>
                   <div
                     className="gtk-menu-item"
@@ -263,14 +316,11 @@ export const TitleBar = ({
                       setShowMenu(false)
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '16px' }} />
-                      <span>About VibePort</span>
-                    </div>
+                    <span>About VibePort</span>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   <div
                     className="gtk-menu-item"
                     style={{
@@ -280,7 +330,7 @@ export const TitleBar = ({
                       borderBottom: '1px solid rgba(255,255,255,0.06)',
                       marginBottom: '6px',
                       cursor: 'pointer',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       gap: '8px',
                       transition: 'all 0.15s'
                     }}
@@ -289,8 +339,8 @@ export const TitleBar = ({
                       setMenuPanel('main')
                     }}
                   >
-                    <ChevronLeft size={16} color="#cbd5e1" style={{ flexShrink: 0 }} />
-                    <span style={{ fontWeight: '600', fontSize: '13px', color: '#f8fafc' }}>Sort</span>
+                    <ChevronLeft size={16} color="#ffffff" style={{ flexShrink: 0 }} />
+                    <span style={{ fontWeight: '600', fontSize: '13px', color: '#ffffff' }}>Sort</span>
                   </div>
                   {SORT_OPTIONS.map((opt) => {
                     const isSelected = sortBy === opt.value
@@ -345,49 +395,84 @@ export const TitleBar = ({
         )}
       </div>
 
-      {/* Custom Window Controls */}
-      <div style={styles.windowControls}>
+      {/* Custom Window Controls (GNOME circle-style indicator buttons) */}
+      <div style={{ ...styles.windowControls, gap: '6px' }}>
         <button
-          className="window-control-btn"
-          style={styles.windowBtn}
+          className="gtk-window-btn minimize"
+          style={{
+            width: '26px',
+            height: '26px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            transition: 'all 0.15s ease',
+            outline: 'none'
+          }}
           onClick={() => window.api?.minimizeWindow()}
           title="Minimize"
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect y="4.5" width="10" height="1" fill="currentColor"/>
+          <svg width="10" height="2" viewBox="0 0 10 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="10" height="2" fill="currentColor"/>
           </svg>
         </button>
 
         <button
-          className="window-control-btn"
-          style={styles.windowBtn}
+          className="gtk-window-btn maximize"
+          style={{
+            width: '26px',
+            height: '26px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            transition: 'all 0.15s ease',
+            outline: 'none'
+          }}
           onClick={() => window.api?.maximizeWindow()}
           title={isMaximized ? "Restore" : "Maximize"}
         >
           {isMaximized ? (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M3 1H9V7H8V8H10V0H2V2H3V1ZM7 3H1V9H7V3ZM0 2V10H8V2H0ZM6 8H2V4H6V8Z"
-                fill="currentColor"
-                fillRule="evenodd"
-                clipRule="evenodd"
-              />
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.5 1.5H7.5V6.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+              <rect x="1.5" y="2.5" width="5" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.1" fill="none" />
             </svg>
           ) : (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="1" y="1" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1" fill="none"/>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="0.5" y="0.5" width="7" height="7" rx="0.5" stroke="currentColor" strokeWidth="1.1" fill="none"/>
             </svg>
           )}
         </button>
 
         <button
-          className="window-control-btn close"
-          style={styles.windowBtn}
+          className="gtk-window-btn close"
+          style={{
+            width: '26px',
+            height: '26px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            transition: 'all 0.15s ease',
+            outline: 'none'
+          }}
           onClick={() => window.api?.closeWindow()}
           title="Close"
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 1L7 7M7 1L1 7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
         </button>
       </div>

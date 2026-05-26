@@ -4,7 +4,16 @@ import { vibeportDir, settingsPath } from './paths.js'
 const DEFAULTS = {
   card_size: 'cozy',
   show_titles: true,
-  use_windows_accent: true
+  use_windows_accent: true,
+  exit_after_launch: false,
+  auto_import: true,
+  remove_uninstalled: true,
+  scan_steam: true,
+  scan_gog: true,
+  scan_epic: true,
+  scan_ea: true,
+  scan_ubisoft: true,
+  scan_bnet: true
 }
 
 export function getSettingsData() {

@@ -8,6 +8,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      if (window.location.hash === '#shortcuts') {
+        document.documentElement.style.setProperty('background', 'transparent', 'important');
+        document.documentElement.style.setProperty('background-color', 'transparent', 'important');
+        const style = document.createElement('style');
+        style.innerHTML = 'html, body, #root { background: transparent !important; background-color: transparent !important; }';
+        document.head.appendChild(style);
+      }
+    </script>
     <style>
       * {
         user-select: none;

@@ -1,7 +1,17 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { BrowserWindow } from 'electron'
 import { gamesPath, coversDir, STEAMGRIDDB_API_KEY } from '../lib/paths.js'
 import { downloadCoverFromUrl } from './images.js'
+
+function sendScanProgress(current, total, message) {
+  const windows = BrowserWindow.getAllWindows()
+  for (const win of windows) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('scan-progress', { current, total, message })
+    }
+  }
+}
 
 // ─── Single Game Cover Downloader ──────────────────────────────────────────────
 export async function downloadCoverForGame(gameData, notifyRenderer) {
@@ -48,8 +58,19 @@ export async function downloadCoverForGame(gameData, notifyRenderer) {
           console.error('[BG-COVER] Animated grid query failed:', e.message)
         }
 
-        // Fall back to static grids
-        if (grids.length === 0) {
+        if (grids.length > 0) {
+          console.log(`[BG-COVER] Selected SteamGridDB animated cover for ${name}: ${grids[0].url}`)
+          const dlResult = await downloadCoverFromUrl(gameId, grids[0].url, notifyRenderer)
+          if (dlResult.success) {
+            console.log(`[BG-COVER] Successfully downloaded animated cover from SteamGridDB for ${name}`)
+            sgdbSuccess = true
+          } else {
+            console.log(`[BG-COVER] Animated cover download failed or was skipped for ${name}: ${dlResult.error}. Trying static fallback...`)
+          }
+        }
+
+        // Fall back to static grids if animated grid failed or wasn't found
+        if (!sgdbSuccess) {
           try {
             const statRes = await fetch(
               `https://www.steamgriddb.com/api/v2/grids/game/${sgdbId}?types=static`,
@@ -57,19 +78,17 @@ export async function downloadCoverForGame(gameData, notifyRenderer) {
             )
             if (statRes.ok) {
               const statJson = await statRes.json()
-              if (statJson.success && statJson.data?.length > 0) grids = statJson.data
+              if (statJson.success && statJson.data?.length > 0) {
+                console.log(`[BG-COVER] Selected SteamGridDB static cover for ${name}: ${statJson.data[0].url}`)
+                const dlResult = await downloadCoverFromUrl(gameId, statJson.data[0].url, notifyRenderer)
+                if (dlResult.success) {
+                  console.log(`[BG-COVER] Successfully downloaded static cover from SteamGridDB for ${name}`)
+                  sgdbSuccess = true
+                }
+              }
             }
           } catch (e) {
             console.error('[BG-COVER] Static grid query failed:', e.message)
-          }
-        }
-
-        if (grids.length > 0) {
-          console.log(`[BG-COVER] Selected SteamGridDB cover for ${name}: ${grids[0].url}`)
-          const dlResult = await downloadCoverFromUrl(gameId, grids[0].url, notifyRenderer)
-          if (dlResult.success) {
-            console.log(`[BG-COVER] Successfully downloaded cover from SteamGridDB for ${name}`)
-            sgdbSuccess = true
           }
         }
       }
@@ -129,22 +148,42 @@ export async function downloadCoverForGame(gameData, notifyRenderer) {
   return false
 }
 
+let isDownloadingCovers = false
+
 // ─── Background Cover Downloader ──────────────────────────────────────────────
 // Runs after startup scan. For each game without a cover, tries to download one.
 export async function runBackgroundCoverDownloader(notifyRenderer) {
-  console.log('[BG-COVER] Starting background cover downloader...')
-  if (!fs.existsSync(gamesPath)) return
+  if (isDownloadingCovers) {
+    console.log('[BG-COVER] Background cover downloader is already running. Skipping concurrent run.')
+    return
+  }
+  isDownloadingCovers = true
 
-  const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+  try {
+    console.log('[BG-COVER] Starting background cover downloader...')
+    if (!fs.existsSync(gamesPath)) return
 
-  for (const file of files) {
-    try {
-      const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
-      if (data.removed || data.blacklisted) continue
+    const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+    const totalFiles = files.length
 
-      await downloadCoverForGame(data, notifyRenderer)
-    } catch (err) {
-      console.error(`[BG-COVER] Error processing cover for ${file}:`, err.message)
+    for (let i = 0; i < totalFiles; i++) {
+      const file = files[i]
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
+        if (data.removed || data.blacklisted) continue
+
+        const name = data.name || 'Unknown Game'
+        const currentPercent = Math.round(10 + (90 * (i / totalFiles)))
+        sendScanProgress(currentPercent, 100, `Synchronizing cover art for ${name}...`)
+
+        await downloadCoverForGame(data, notifyRenderer)
+      } catch (err) {
+        console.error(`[BG-COVER] Error processing cover for ${file}:`, err.message)
+      }
     }
+    sendScanProgress(100, 100, 'Cover art synchronization complete!')
+  } finally {
+    isDownloadingCovers = false
+    console.log('[BG-COVER] Background cover downloader completed.')
   }
 }

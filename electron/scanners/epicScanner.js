@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { gamesPath } from '../lib/paths.js'
 import { writeGame, removeCoverFiles } from '../lib/gameStore.js'
+import { getSettingsData } from '../lib/settings.js'
 
 const MANIFESTS_DIR = 'C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests'
 
@@ -53,7 +54,8 @@ export async function scanEpicLibrary() {
     }
 
     // Remove uninstalled Epic games
-    if (fs.existsSync(gamesPath)) {
+    const settings = getSettingsData()
+    if (settings.remove_uninstalled !== false && fs.existsSync(gamesPath)) {
       for (const dbFile of fs.readdirSync(gamesPath).filter(f => f.startsWith('epic_') && f.endsWith('.json'))) {
         const gameId = dbFile.replace('.json', '')
         if (!foundIds.has(gameId)) {

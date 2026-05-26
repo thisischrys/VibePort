@@ -3,6 +3,7 @@ import path from 'node:path'
 import { exec } from 'node:child_process'
 import { gamesPath } from '../lib/paths.js'
 import { writeGame, removeCoverFiles } from '../lib/gameStore.js'
+import { getSettingsData } from '../lib/settings.js'
 
 export function scanGogLibrary() {
   console.log('[AUTO-SCAN] Scanning GOG library via registry...')
@@ -70,7 +71,8 @@ export function scanGogLibrary() {
         }
 
         // Remove uninstalled GOG games
-        if (fs.existsSync(gamesPath)) {
+        const settings = getSettingsData()
+        if (settings.remove_uninstalled !== false && fs.existsSync(gamesPath)) {
           for (const dbFile of fs.readdirSync(gamesPath).filter(f => f.startsWith('gog_') && f.endsWith('.json'))) {
             const gameId = dbFile.replace('.json', '')
             if (!foundIds.has(gameId)) {

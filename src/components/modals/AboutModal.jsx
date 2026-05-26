@@ -9,7 +9,12 @@ const AboutModal = ({ accentHex, version, onClose }) => (
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    style={styles.modalOverlay}
+    style={{
+      ...styles.modalOverlay,
+      backdropFilter: 'none',
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+      WebkitAppRegion: 'drag', // Make overlay background draggable to move main window!
+    }}
     onClick={onClose}
   >
     <motion.div
@@ -20,28 +25,40 @@ const AboutModal = ({ accentHex, version, onClose }) => (
         ...styles.modalContentLarge,
         width: '380px',
         textAlign: 'center',
-        padding: '28px 24px',
+        padding: '16px 24px 28px 24px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '16px'
+        gap: '16px',
+        WebkitAppRegion: 'no-drag', // Stop drag inside card content area
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Top Close Button */}
+      {/* Top Drag Header Bar */}
       <div
         style={{
-          alignSelf: 'flex-end',
-          cursor: 'pointer',
-          color: '#94a3b8',
-          transition: 'color 0.2s',
-          marginTop: '-12px',
-          marginRight: '-8px'
+          width: '100%',
+          height: '24px',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          WebkitAppRegion: 'drag', // Dragging this top header bar moves the main window!
+          userSelect: 'none',
         }}
-        onClick={onClose}
-        title="Close"
       >
-        <X size={18} />
+        <div
+          style={{
+            cursor: 'pointer',
+            color: '#94a3b8',
+            transition: 'color 0.2s',
+            marginRight: '-8px',
+            WebkitAppRegion: 'no-drag', // Keep close button clickable
+          }}
+          onClick={onClose}
+          title="Close"
+        >
+          <X size={18} />
+        </div>
       </div>
 
 

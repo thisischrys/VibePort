@@ -3,6 +3,7 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { gamesPath, coversDir } from '../lib/paths.js'
 import { writeGame, removeCoverFiles } from '../lib/gameStore.js'
+import { getSettingsData } from '../lib/settings.js'
 
 function parseLibraryFolders(content) {
   const paths = []
@@ -101,7 +102,8 @@ export async function scanSteamLibrary() {
     }
 
     // Remove uninstalled Steam games
-    if (fs.existsSync(gamesPath)) {
+    const settings = getSettingsData()
+    if (settings.remove_uninstalled !== false && fs.existsSync(gamesPath)) {
       for (const dbFile of fs.readdirSync(gamesPath).filter(f => f.startsWith('steam_') && f.endsWith('.json'))) {
         const gameId = dbFile.replace('.json', '')
         if (!foundIds.has(gameId)) {

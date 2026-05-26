@@ -38,6 +38,7 @@ if (!gotTheLock) {
 
 let mainWindow = null
 let splashWindow = null
+let shortcutsWindow = null
 let lastAccentColor = null
 
 // ─── Renderer Notification Helper ────────────────────────────────────────────
@@ -79,6 +80,64 @@ function createWindow() {
   })
 
   mainWindow.on('closed', () => { mainWindow = null })
+}
+
+function createShortcutsWindow() {
+  if (shortcutsWindow) {
+    shortcutsWindow.focus()
+    return
+  }
+
+  const iconPath = path.join(__dirname, '../build/icon_transparent.png')
+  shortcutsWindow = new BrowserWindow({
+    parent: mainWindow || undefined,
+    width: 640,
+    height: 420,
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    thickFrame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    center: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      sandbox: false
+    },
+    show: false
+  })
+
+  shortcutsWindow.setMenu(null)
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    shortcutsWindow.loadURL(process.env.VITE_DEV_SERVER_URL + '#shortcuts')
+  } else {
+    shortcutsWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: 'shortcuts' })
+  }
+
+  // Natively freeze main window dragging and resizing silently
+  if (mainWindow) {
+    mainWindow.setMovable(false)
+    mainWindow.setResizable(false)
+    mainWindow.webContents.send('shortcuts-window-status', true)
+  }
+
+  shortcutsWindow.once('ready-to-show', () => {
+    shortcutsWindow.center()
+    shortcutsWindow.show()
+  })
+
+  shortcutsWindow.on('closed', () => {
+    shortcutsWindow = null
+    if (mainWindow) {
+      mainWindow.setMovable(true)
+      mainWindow.setResizable(true)
+      mainWindow.webContents.send('shortcuts-window-status', false)
+      mainWindow.focus()
+    }
+  })
 }
 
 function createSplashWindow() {
@@ -293,26 +352,34 @@ ipcMain.handle('save-settings', async (event, newSettings) => {
 })
 
 // ─── IPC: Window Controls ─────────────────────────────────────────────────────
-ipcMain.on('window-minimize', () => {
-  if (mainWindow) mainWindow.minimize()
+ipcMain.on('window-minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) win.minimize()
 })
 
-ipcMain.on('window-maximize', () => {
-  if (mainWindow) {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize()
+ipcMain.on('window-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) {
+    if (win.isMaximized()) {
+      win.unmaximize()
     } else {
-      mainWindow.maximize()
+      win.maximize()
     }
   }
 })
 
-ipcMain.on('window-close', () => {
-  if (mainWindow) mainWindow.close()
+ipcMain.on('window-close', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) win.close()
 })
 
-ipcMain.handle('window-is-maximized', () => {
-  return mainWindow ? mainWindow.isMaximized() : false
+ipcMain.handle('window-is-maximized', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  return win ? win.isMaximized() : false
+})
+
+ipcMain.handle('open-shortcuts-window', () => {
+  createShortcutsWindow()
 })
 
 // ─── IPC: System ─────────────────────────────────────────────────────────────
@@ -368,6 +435,22 @@ ipcMain.handle('select-file', async () => {
     return result.canceled ? null : result.filePaths[0]
   } catch (e) {
     console.error('select-file error:', e)
+    return null
+  }
+})
+
+ipcMain.handle('select-image', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+    return result.canceled ? null : result.filePaths[0]
+  } catch (e) {
+    console.error('select-image error:', e)
     return null
   }
 })
@@ -525,15 +608,42 @@ ipcMain.handle('search-steamgriddb', async (event, query) => {
 
 ipcMain.handle('fetch-steamgriddb-covers', async (event, gameId) => {
   try {
-    const res = await fetch(
-      `https://www.steamgriddb.com/api/v2/grids/game/${gameId}?types=animated,static`,
-      { headers: { Authorization: `Bearer ${STEAMGRIDDB_API_KEY}` } }
-    )
-    if (!res.ok) throw new Error(`SteamGridDB fetch covers failed: ${res.statusText}`)
-    const json = await res.json()
-    return json.success && Array.isArray(json.data)
-      ? json.data.map(g => ({ id: g.id, thumb: g.thumb || g.url, url: g.url, type: g.type || 'static', width: g.width || 0, height: g.height || 0 }))
-      : []
+    const [animRes, statRes] = await Promise.all([
+      fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?types=animated`, { headers: { Authorization: `Bearer ${STEAMGRIDDB_API_KEY}` } }).catch(() => null),
+      fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?types=static`, { headers: { Authorization: `Bearer ${STEAMGRIDDB_API_KEY}` } }).catch(() => null)
+    ])
+
+    let animatedCovers = []
+    if (animRes && animRes.ok) {
+      const json = await animRes.json()
+      if (json.success && Array.isArray(json.data)) {
+        animatedCovers = json.data.map(g => ({
+          id: g.id,
+          thumb: g.thumb || g.url,
+          url: g.url,
+          type: 'animated',
+          width: g.width || 0,
+          height: g.height || 0
+        }))
+      }
+    }
+
+    let staticCovers = []
+    if (statRes && statRes.ok) {
+      const json = await statRes.json()
+      if (json.success && Array.isArray(json.data)) {
+        staticCovers = json.data.map(g => ({
+          id: g.id,
+          thumb: g.thumb || g.url,
+          url: g.url,
+          type: 'static',
+          width: g.width || 0,
+          height: g.height || 0
+        }))
+      }
+    }
+
+    return [...animatedCovers, ...staticCovers]
   } catch (e) {
     console.error('SteamGridDB fetch covers error:', e)
     throw e
@@ -541,19 +651,124 @@ ipcMain.handle('fetch-steamgriddb-covers', async (event, gameId) => {
 })
 
 ipcMain.handle('download-cover-url', async (event, gameId, imageUrl) => {
+  if (!imageUrl) {
+    removeCoverFiles(gameId)
+    notifyRenderer()
+    return { success: true, coverUrl: '' }
+  }
   return downloadCoverFromUrl(gameId, imageUrl, notifyRenderer)
+})
+
+ipcMain.handle('run-auto-scan', async (event, enabledLaunchers) => {
+  try {
+    console.log('[AUTO-SCAN] Rerunning scan for enabled launchers:', enabledLaunchers)
+    
+    const sendProgress = (current, total, message) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scan-progress', { current, total, message })
+      }
+    }
+    
+    sendProgress(0, 100, 'Initializing game library scan...')
+    
+    const promises = []
+    if (enabledLaunchers.steam) {
+      sendProgress(2, 100, 'Scanning Steam registry & libraries...')
+      promises.push(scanSteamLibrary())
+    }
+    if (enabledLaunchers.gog) {
+      sendProgress(4, 100, 'Scanning GOG registry & libraries...')
+      promises.push(scanGogLibrary())
+    }
+    if (enabledLaunchers.epic) {
+      sendProgress(5, 100, 'Scanning Epic Games launcher...')
+      promises.push(scanEpicLibrary())
+    }
+    if (enabledLaunchers.ea) {
+      sendProgress(6, 100, 'Scanning EA Desktop launcher...')
+      promises.push(scanEaLibrary())
+    }
+    if (enabledLaunchers.ubisoft) {
+      sendProgress(8, 100, 'Scanning Ubisoft Connect launcher...')
+      promises.push(scanUbisoftLibrary())
+    }
+    if (enabledLaunchers.bnet) {
+      sendProgress(9, 100, 'Scanning Battle.net launcher...')
+      promises.push(scanBattlenetLibrary())
+    }
+    
+    await Promise.all(promises)
+    console.log('[AUTO-SCAN] Scan rerun complete.')
+    notifyRenderer()
+    
+    sendProgress(10, 100, 'Registry scan complete. Starting cover downloader...')
+    
+    await runBackgroundCoverDownloader(notifyRenderer).catch(err => {
+      console.error('[BG-COVER] Scan rerun cover downloader failed:', err.message)
+    })
+    
+    sendProgress(100, 100, 'Scan complete!')
+    return { success: true }
+  } catch (e) {
+    console.error('run-auto-scan error:', e)
+    return { success: false, error: e.message }
+  }
+})
+
+ipcMain.handle('update-all-covers', async () => {
+  try {
+    console.log('[BG-COVER] Triggering covers update for library...')
+    runBackgroundCoverDownloader(notifyRenderer).catch(err => {
+      console.error('[BG-COVER] Background cover downloader failed:', err.message)
+    })
+    return { success: true }
+  } catch (e) {
+    console.error('update-all-covers error:', e)
+    return { success: false, error: e.message }
+  }
+})
+
+ipcMain.handle('remove-all-games', async () => {
+  try {
+    console.log('[DANGER] Wiping all games from database completely...')
+    if (fs.existsSync(gamesPath)) {
+      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+      for (const file of files) {
+        const gameId = file.replace('.json', '')
+        try {
+          fs.unlinkSync(path.join(gamesPath, file))
+          removeCoverFiles(gameId)
+        } catch (err) {
+          console.error(`[DANGER] Failed to delete ${file}:`, err.message)
+        }
+      }
+    }
+    notifyRenderer()
+    return true
+  } catch (e) {
+    console.error('remove-all-games error:', e)
+    return false
+  }
 })
 
 // ─── Auto Scan ────────────────────────────────────────────────────────────────
 function runAutoScan() {
-  Promise.all([
-    scanSteamLibrary(),
-    scanGogLibrary(),
-    scanEpicLibrary(),
-    scanEaLibrary(),
-    scanUbisoftLibrary(),
-    scanBattlenetLibrary()
-  ])
+  const settings = getSettingsData()
+  if (settings.auto_import === false) {
+    console.log('[AUTO-SCAN] Auto-import is disabled in settings. Skipping background auto-scan.')
+    return
+  }
+
+  console.log('[AUTO-SCAN] Starting background auto-scan...')
+  const promises = []
+  if (settings.scan_steam !== false) promises.push(scanSteamLibrary())
+  if (settings.scan_gog !== false) promises.push(scanGogLibrary())
+  if (settings.scan_epic !== false) promises.push(scanEpicLibrary())
+  if (settings.scan_ea !== false) promises.push(scanEaLibrary())
+  if (settings.scan_ubisoft !== false) promises.push(scanUbisoftLibrary())
+  if (settings.scan_bnet !== false) promises.push(scanBattlenetLibrary())
+
+  Promise.all(promises)
     .then(() => {
       console.log('[AUTO-SCAN] Background auto-scan completed.')
       notifyRenderer()
@@ -676,11 +891,16 @@ app.whenReady().then(() => {
     setTimeout(runAutoScan, 2000)
   })
 
-  // Start the update check
-  autoUpdater.checkForUpdates().catch((err) => {
-    console.error('Failed to trigger update check:', err)
+  // Start the update check or run auto-scan in development mode
+  if (!app.isPackaged) {
+    console.log('[DEV] Not packaged, skipping update check. Running auto-scan in 2 seconds...')
     setTimeout(runAutoScan, 2000)
-  })
+  } else {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('Failed to trigger update check:', err)
+      setTimeout(runAutoScan, 2000)
+    })
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

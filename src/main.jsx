@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import { ShortcutsModal } from './components/modals/ShortcutsModal.jsx'
 
 // ─── Browser Compatibility Layer (Mock API outside Electron) ─────────────────
 if (typeof window !== 'undefined' && !window.api) {
@@ -208,8 +209,16 @@ if (typeof window !== 'undefined' && !window.api) {
   };
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+if (window.location.hash === '#shortcuts') {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <ShortcutsModal standalone={true} onClose={() => window.api?.closeWindow()} />
+    </React.StrictMode>,
+  )
+} else {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  )
+}

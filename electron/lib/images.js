@@ -14,17 +14,30 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
       fs.mkdirSync(coversDir, { recursive: true })
     }
 
-    const res = await fetch(imageUrl)
-    if (!res.ok) throw new Error(`Failed to fetch cover: ${res.statusText}`)
-
-    const contentType = res.headers.get('content-type') || ''
+    let buffer
     let ext = '.png'
-    if (contentType.includes('image/gif')) ext = '.gif'
-    else if (contentType.includes('image/webp')) ext = '.webp'
-    else if (contentType.includes('image/jpeg')) ext = '.jpg'
-    else {
-      const urlExt = path.extname(new URL(imageUrl).pathname).toLowerCase()
-      if (urlExt) ext = urlExt
+
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      const res = await fetch(imageUrl)
+      if (!res.ok) throw new Error(`Failed to fetch cover: ${res.statusText}`)
+
+      const contentType = res.headers.get('content-type') || ''
+      if (contentType.includes('image/gif')) ext = '.gif'
+      else if (contentType.includes('image/webp')) ext = '.webp'
+      else if (contentType.includes('image/jpeg')) ext = '.jpg'
+      else {
+        const urlExt = path.extname(new URL(imageUrl).pathname).toLowerCase()
+        if (urlExt) ext = urlExt
+      }
+      buffer = Buffer.from(await res.arrayBuffer())
+    } else {
+      let localPath = imageUrl.replace(/^media:\/\/\/?/, '')
+      if (localPath.match(/^\/[a-zA-Z]:/)) {
+        localPath = localPath.substring(1)
+      }
+      if (!fs.existsSync(localPath)) throw new Error(`Local cover file not found: ${localPath}`)
+      buffer = fs.readFileSync(localPath)
+      ext = path.extname(localPath).toLowerCase()
     }
 
     // Remove any existing covers for this game to avoid stale duplicates
@@ -35,29 +48,31 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
         }
       }
     }
-
-    const buffer = Buffer.from(await res.arrayBuffer())
     let targetPath
 
-    // Detect if the cover is animated (APNG, animated WebP, or animated GIF)
+    // APNGs are natively rendered by Chromium. Since sharp cannot write APNGs,
+    // we bypass sharp entirely and save the raw original buffer as .png so it plays animated!
+    if (isApng(buffer)) {
+      console.log(`[COVER-DL] Saving raw APNG animation directly for ${gameId}...`)
+      targetPath = path.join(coversDir, `${gameId}.png`)
+      fs.writeFileSync(targetPath, buffer)
+      if (notifyRenderer) notifyRenderer()
+      return { success: true, coverUrl: `media://${targetPath.replace(/\\/g, '/')}` }
+    }
+
+    // Detect if the cover is animated (animated WebP or animated GIF)
     let isAnimated = false
     let animExt = ext
 
-    if (isApng(buffer)) {
-      isAnimated = true
-      animExt = '.png'
-    } else {
-      try {
-        const metadata = await sharp(buffer).metadata()
-        if (metadata.pages && metadata.pages > 1) {
-          isAnimated = true
-          if (metadata.format === 'webp') animExt = '.webp'
-          else if (metadata.format === 'gif') animExt = '.gif'
-          else if (metadata.format === 'png') animExt = '.png'
-        }
-      } catch (err) {
-        // Keep isAnimated as false and fall back to static resizing
+    try {
+      const metadata = await sharp(buffer).metadata()
+      if (metadata.pages && metadata.pages > 1 && !isApng(buffer)) {
+        isAnimated = true
+        if (metadata.format === 'webp') animExt = '.webp'
+        else if (metadata.format === 'gif') animExt = '.gif'
       }
+    } catch (err) {
+      // Keep isAnimated as false and fall back to static resizing
     }
 
     if (isAnimated) {
@@ -84,7 +99,7 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
       targetPath = path.join(coversDir, `${gameId}.webp`)
       try {
         // Permanently compress and resize to a 300x450 WebP for smooth rendering
-        await sharp(buffer, { animated: true, limitInputPixels: false })
+        await sharp(buffer, { limitInputPixels: false })
           .resize({ width: 300, height: 450, fit: 'cover' })
           .webp({ quality: 80, effort: 4 })
           .toFile(targetPath)

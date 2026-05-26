@@ -3,6 +3,7 @@ import path from 'node:path'
 import protobuf from 'protobufjs'
 import { gamesPath } from '../lib/paths.js'
 import { writeGame, removeCoverFiles } from '../lib/gameStore.js'
+import { getSettingsData } from '../lib/settings.js'
 
 // Inlined compiled Protobuf JSON schema for product.db decoding
 const PROTO_SCHEMA = {
@@ -282,7 +283,8 @@ export async function scanBattlenetLibrary() {
     }
 
     // Clean up uninstalled Battle.net games
-    if (fs.existsSync(gamesPath)) {
+    const settings = getSettingsData()
+    if (settings.remove_uninstalled !== false && fs.existsSync(gamesPath)) {
       const files = fs.readdirSync(gamesPath).filter(f => f.startsWith('battlenet_') && f.endsWith('.json'))
       for (const dbFile of files) {
         const gameId = dbFile.replace('.json', '')

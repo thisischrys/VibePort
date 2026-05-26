@@ -14,6 +14,8 @@ import { LauncherIcon } from './components/LauncherIcon.jsx'
 import AddGameModal from './components/modals/AddGameModal.jsx'
 import EditGameModal from './components/modals/EditGameModal.jsx'
 import AboutModal from './components/modals/AboutModal.jsx'
+import { PreferencesModal } from './components/modals/PreferencesModal.jsx'
+import { ShortcutsModal } from './components/modals/ShortcutsModal.jsx'
 import packageJson from '../package.json'
 
 import { TitleBar } from './components/TitleBar.jsx'
@@ -29,9 +31,7 @@ const GLOBAL_CSS = `
     -webkit-user-select: text !important;
   }
 
-  .game-card-hover:hover .play-overlay { opacity: 1 !important; }
-  .game-card-hover:hover .play-button-circle { transform: scale(1) !important; }
-  .game-card-hover:hover .cover-image { transform: scale(1.04) !important; }
+
   .game-card-hover:hover .game-title { color: var(--accent) !important; }
   .game-card-hover:hover .cover-wrapper {
     box-shadow: 0 0 30px var(--accent-glow-strong) !important;
@@ -40,11 +40,8 @@ const GLOBAL_CSS = `
   .game-card-hover:hover .edit-overlay-btn { opacity: 1 !important; transform: scale(1) !important; }
 
   .game-card-hover {
-    transition: transform 0.18s cubic-bezier(0.25, 0.8, 0.25, 1);
-    will-change: transform;
     contain: layout style;
   }
-  .game-card-hover:hover { transform: translateY(-6px); }
   .cover-wrapper { will-change: box-shadow, border-color; }
 
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -95,50 +92,88 @@ const GLOBAL_CSS = `
     color: #ffffff !important;
   }
 
-  /* Grid and Card sizing system */
+  .gtk-window-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+  }
+  .gtk-window-btn.close:hover {
+    background-color: #ef4444 !important;
+  }
+  .gtk-modal-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+  }
+  .gtk-tab-hover:hover {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
+  .gtk-danger-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+  }
+
+  /* Fluid Responsive Grid and Card sizing system based on height and width */
   .game-grid {
     display: grid !important;
-    gap: 28px;
-    grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+    gap: 32px !important;
+    grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)) !important;
   }
 
   .grid-container {
-    padding: 32px;
+    padding: 40px !important;
+    padding-bottom: 80px !important;
   }
 
-  /* Vertical resizing constraints for game cards and grids */
+  .game-card-hover {
+    max-width: 320px !important;
+  }
+
+  .game-title {
+    font-size: 15.5px !important;
+  }
+
+  /* Height-based responsive tiers to keep card dimensions perfectly proportional */
+  @media (max-height: 1050px) {
+    .grid-container {
+      padding: 32px !important;
+      padding-bottom: 64px !important;
+    }
+    .game-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)) !important;
+      gap: 28px !important;
+    }
+    .game-card-hover {
+      max-width: 220px !important;
+    }
+    .game-title {
+      font-size: 13.5px !important;
+    }
+  }
+
   @media (max-height: 800px) {
     .grid-container {
-      padding: 20px !important;
+      padding: 24px !important;
+      padding-bottom: 48px !important;
     }
     .game-grid {
       grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)) !important;
       gap: 20px !important;
     }
     .game-card-hover {
-      max-width: 160px !important;
-    }
-    .game-info {
-      margin-top: 8px !important;
+      max-width: 170px !important;
     }
     .game-title {
-      font-size: 13px !important;
+      font-size: 12.5px !important;
     }
   }
 
   @media (max-height: 600px) {
     .grid-container {
       padding: 16px !important;
+      padding-bottom: 32px !important;
     }
     .game-grid {
       grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr)) !important;
       gap: 14px !important;
     }
     .game-card-hover {
-      max-width: 120px !important;
-    }
-    .game-info {
-      margin-top: 6px !important;
+      max-width: 130px !important;
     }
     .game-title {
       font-size: 11px !important;
@@ -148,6 +183,7 @@ const GLOBAL_CSS = `
   @media (max-height: 450px) {
     .grid-container {
       padding: 10px !important;
+      padding-bottom: 24px !important;
     }
     .game-grid {
       grid-template-columns: repeat(auto-fill, minmax(min(90px, 100%), 1fr)) !important;
@@ -155,9 +191,6 @@ const GLOBAL_CSS = `
     }
     .game-card-hover {
       max-width: 100px !important;
-    }
-    .game-info {
-      margin-top: 4px !important;
     }
     .game-title {
       font-size: 9.5px !important;
@@ -215,8 +248,8 @@ function sortGames(games, sortBy) {
 
 // ─── GameCard ─────────────────────────────────────────────────────────────────
 
-const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit, onToggleHide, onDelete, onImageError }) => {
-  const [menuOpen, setMenuOpen] = React.useState(false)
+const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit, onToggleHide, onDelete, onImageError, activeMenuGameId, setActiveMenuGameId }) => {
+  const isOpen = activeMenuGameId === game.game_id
 
   return (
     <motion.div
@@ -224,29 +257,16 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
       className="game-card-hover"
-      style={{ ...styles.gameCard, ...(isHidden ? { opacity: 0.8 } : {}) }}
+      style={{
+        ...styles.gameCard,
+        position: 'relative',
+        zIndex: isOpen ? 1600 : 1,
+        ...(isHidden ? { opacity: 0.8 } : {})
+      }}
       onClick={(e) => onLaunch(game, e)}
     >
-      {menuOpen && (
-        <div 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }}
-          onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
-        />
-      )}
-
       <div className="cover-wrapper" style={{ ...styles.coverWrapper, display: 'flex', flexDirection: 'column', background: 'rgba(255, 255, 255, 0.04)' }}>
-        {isHidden && (
-          <div style={{
-            position: 'absolute', top: '8px', left: '8px', zIndex: 10,
-            backgroundColor: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)',
-            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-            padding: '3px 6px', display: 'flex', alignItems: 'center', gap: '4px',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-          }}>
-            <EyeOff size={11} color="#cbd5e1" />
-            <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: '600' }}>Hidden</span>
-          </div>
-        )}
+
         <div style={styles.coverContainer}>
           {game.coverUrl && !failedCovers[game.game_id] ? (
             <img src={game.coverUrl} alt={game.name} className="cover-image" style={styles.cover}
@@ -257,12 +277,9 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
               <span style={styles.placeholderText}>{game.name[0]}</span>
             </div>
           )}
-          <div className="play-overlay" style={styles.playOverlay}>
-            <div className="play-button-circle" style={styles.playButtonCircle}>
-              <Play size={22} fill="#0d0b14" color="#0d0b14" style={{ marginLeft: '3px' }} />
-            </div>
-          </div>
+
           <div 
+            id={`trigger-${game.game_id}`}
             className="edit-overlay-btn" 
             style={{
               ...styles.editActionContainer,
@@ -270,136 +287,141 @@ const GameCard = ({ game, isHidden, failedCovers, cardFontSize, onLaunch, onEdit
               width: '34px',
               height: '34px',
               backgroundColor: 'rgba(15, 12, 28, 0.65)',
-              ...(menuOpen ? { opacity: 1, transform: 'scale(1)', backgroundColor: 'rgba(255, 255, 255, 0.15)' } : {})
+              ...(isOpen ? { opacity: 1, transform: 'scale(1)', backgroundColor: 'rgba(255, 255, 255, 0.15)' } : {})
             }} 
             onClick={(e) => {
               e.stopPropagation()
-              setMenuOpen(prev => !prev)
+              setActiveMenuGameId(isOpen ? null : game.game_id)
             }}
           >
             <MoreVertical size={16} color="#ffffff" />
           </div>
 
-          {menuOpen && (
-            <div 
-              style={{
-                position: 'absolute',
-                top: '52px',
-                right: '12px',
-                width: '120px',
-                backgroundColor: 'rgba(15, 12, 28, 0.75)',
-                backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '6px',
-                zIndex: 50,
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{
-                position: 'absolute',
-                top: '-6px',
-                right: '12px',
-                width: '10px',
-                height: '10px',
-                backgroundColor: 'rgba(15, 12, 28, 0.75)',
-                borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                transform: 'rotate(45deg)',
-                zIndex: 49
-              }} />
-
-              <div 
-                className="gtk-menu-item"
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  color: '#cbd5e1',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  zIndex: 51
-                }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setMenuOpen(false)
-                  onEdit(game, e)
-                }}
-              >
-                Edit
-              </div>
-
-              <div 
-                className="gtk-menu-item"
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  color: '#cbd5e1',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  zIndex: 51
-                }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setMenuOpen(false)
-                  onToggleHide(game, e)
-                }}
-              >
-                {isHidden ? 'Unhide' : 'Hide'}
-              </div>
-
-              <div 
-                className="gtk-menu-item"
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  color: '#cbd5e1',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  zIndex: 51
-                }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setMenuOpen(false)
-                  onDelete(game, e)
-                }}
-              >
-                Remove
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Integrated Title Bar at the Bottom of the Card Wrapper */}
         <div style={{
-          padding: '12px 12px',
+          padding: '8px 12px 9px 12px',
           backgroundColor: 'rgba(255, 255, 255, 0.03)',
           borderTop: '1px solid rgba(255, 255, 255, 0.02)',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          flexShrink: 0
         }}>
           <div className="game-title" style={{ 
             ...styles.gameTitle, 
-            fontSize: '13px',
             margin: 0,
             color: '#cbd5e1',
             fontWeight: '500',
-            letterSpacing: '-0.1px'
+            letterSpacing: '-0.1px',
+            lineHeight: '1.5',
+            paddingBottom: '4px'
           }}>
             {game.name}
           </div>
         </div>
       </div>
+
+      {isOpen && (
+        <div 
+          id={`menu-${game.game_id}`}
+          className="card-menu-container"
+          style={{
+            position: 'absolute',
+            top: '52px',
+            right: '-31px',
+            width: '120px',
+            backgroundColor: 'rgba(15, 12, 28, 0.75)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '12px',
+            padding: '6px',
+            zIndex: 50,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{
+            position: 'absolute',
+            top: '-6px',
+            left: '50%',
+            transform: 'translateX(-50%) rotate(45deg)',
+            width: '10px',
+            height: '10px',
+            backgroundColor: 'rgba(15, 12, 28, 0.75)',
+            borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            zIndex: 49
+          }} />
+
+          <div 
+            className="gtk-menu-item"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              color: '#cbd5e1',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              zIndex: 51
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(game, e)
+              setActiveMenuGameId(null)
+            }}
+          >
+            Edit
+          </div>
+
+          <div 
+            className="gtk-menu-item"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              color: '#cbd5e1',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              zIndex: 51
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleHide(game, e)
+              setActiveMenuGameId(null)
+            }}
+          >
+            {isHidden ? 'Unhide' : 'Hide'}
+          </div>
+
+          <div 
+            className="gtk-menu-item"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              color: '#cbd5e1',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              zIndex: 51
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(game, e)
+              setActiveMenuGameId(null)
+            }}
+          >
+            Remove
+          </div>
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -418,7 +440,8 @@ const App = () => {
   const [failedCovers, setFailedCovers] = useState({})
   const [accentHex, setAccentHex] = useState(() => {
     let initialColor = DEFAULT_ACCENT
-    if (window.api?.getAccentColorSync) {
+    const useWindows = localStorage.getItem('vibeport_use_windows_accent') !== 'false'
+    if (useWindows && window.api?.getAccentColorSync) {
       try {
         const syncColor = window.api.getAccentColorSync()
         if (syncColor) initialColor = syncColor
@@ -432,14 +455,32 @@ const App = () => {
   })
   const [activeToast, setActiveToast] = useState(null)
 
+  const hexToRgb = (hex) => {
+    try {
+      const r = parseInt(hex.slice(0, 2), 16)
+      const g = parseInt(hex.slice(2, 4), 16)
+      const b = parseInt(hex.slice(4, 6), 16)
+      return `${r}, ${g}, ${b}`
+    } catch {
+      return '139, 92, 246'
+    }
+  }
+
 
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAboutModal, setShowAboutModal] = useState(false)
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false)
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+  const [isStandaloneShortcutsOpen, setIsStandaloneShortcutsOpen] = useState(false)
+  const lastDeletedGameRef = React.useRef(null)
+  const lastDeletedGamesListRef = React.useRef(null)
+  const lastImportedGamesListRef = React.useRef(null)
 
 
   const [isScanning, setIsScanning] = useState(false)
+  const [scanProgress, setScanProgress] = useState({ current: 0, total: 100, message: '' })
 
   const [editingGame, setEditingGame] = useState(null)
   const [formName, setFormName] = useState('')
@@ -454,6 +495,7 @@ const App = () => {
   const [sgdbCovers, setSgdbCovers] = useState([])
   const [sgdbCoversLoading, setSgdbCoversLoading] = useState(false)
   const [downloadingCoverId, setDownloadingCoverId] = useState(null)
+  const [activeMenuGameId, setActiveMenuGameId] = useState(null)
 
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('vibeport_sort_by') || 'alphabetical')
   const [showHidden, setShowHidden] = useState(() => localStorage.getItem('vibeport_show_hidden') === 'true')
@@ -476,7 +518,7 @@ const App = () => {
   // ── Accent Color ───────────────────────────────────────────────────────────
   useEffect(() => {
     const applyColor = (hex) => {
-      const useWindows = true
+      const useWindows = localStorage.getItem('vibeport_use_windows_accent') !== 'false'
       const clean = (useWindows ? (hex || DEFAULT_ACCENT) : DEFAULT_ACCENT).replace('#', '')
       setAccentHex(clean)
       applyAccentPalette(clean)
@@ -487,6 +529,42 @@ const App = () => {
     return () => { if (unsub) unsub() }
   }, [])
 
+  useEffect(() => {
+    let unsub
+    if (window.api?.onShortcutsWindowStatus) {
+      unsub = window.api.onShortcutsWindowStatus((isOpen) => {
+        setIsStandaloneShortcutsOpen(isOpen)
+      })
+    }
+    return () => { if (unsub) unsub() }
+  }, [])
+
+  useEffect(() => {
+    if (!isStandaloneShortcutsOpen) return
+
+    const blockInteraction = (e) => {
+      e.stopPropagation()
+      e.preventDefault()
+      if (window.api?.openShortcutsWindow) {
+        window.api.openShortcutsWindow()
+      }
+    }
+
+    window.addEventListener('click', blockInteraction, true)
+    window.addEventListener('mousedown', blockInteraction, true)
+    window.addEventListener('mouseup', blockInteraction, true)
+    window.addEventListener('contextmenu', blockInteraction, true)
+    window.addEventListener('dblclick', blockInteraction, true)
+
+    return () => {
+      window.removeEventListener('click', blockInteraction, true)
+      window.removeEventListener('mousedown', blockInteraction, true)
+      window.removeEventListener('mouseup', blockInteraction, true)
+      window.removeEventListener('contextmenu', blockInteraction, true)
+      window.removeEventListener('dblclick', blockInteraction, true)
+    }
+  }, [isStandaloneShortcutsOpen])
+
   // ── Keyboard Shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -495,13 +573,159 @@ const App = () => {
         return
       }
       const mod = navigator.platform.toUpperCase().includes('MAC') ? e.metaKey : e.ctrlKey
-      if (mod && e.key.toLowerCase() === 'h') { e.preventDefault(); setShowHidden(p => !p) }
+
+      // Ctrl + H -> Toggle Show Hidden
+      if (mod && e.key.toLowerCase() === 'h') {
+        e.preventDefault()
+        setShowHidden(p => !p)
+      }
+
+      // Ctrl + F -> Toggle Search
+      if (mod && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        setShowSearch(p => !p)
+      }
+
+      // Ctrl + , -> Toggle Preferences
+      if (mod && e.key === ',') {
+        e.preventDefault()
+        setShowPreferencesModal(p => !p)
+        setShowAddModal(false)
+        setShowEditModal(false)
+        setShowAboutModal(false)
+        setShowShortcutsModal(false)
+      }
+
+      // Ctrl + ? (with Shift) or Ctrl + / (standard) -> Toggle Shortcuts
+      if (mod && (e.key === '?' || e.key === '/')) {
+        e.preventDefault()
+        handleOpenShortcuts()
+        setShowAddModal(false)
+        setShowEditModal(false)
+        setShowAboutModal(false)
+        setShowPreferencesModal(false)
+      }
+
+      // Ctrl + Q -> Quit App
+      if (mod && e.key.toLowerCase() === 'q') {
+        e.preventDefault()
+        window.api?.closeWindow()
+      }
+
+      // Ctrl + N -> Add Game Modal
+      if (mod && e.key.toLowerCase() === 'n') {
+        e.preventDefault()
+        openAddModal()
+      }
+
+      // Ctrl + G -> Scan Games Folder
+      if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        handleScanGamesFolder()
+      }
+
+      // Ctrl + I -> Run Auto Scanners for Enabled Launchers
+      if (mod && e.key.toLowerCase() === 'i') {
+        e.preventDefault()
+        handleRunAutoScan()
+      }
+
+      // Ctrl + Z -> Undo Deleted Custom Game, Bulk Delete, or Library Import
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (lastImportedGamesListRef.current) {
+          const gamesToRestore = lastImportedGamesListRef.current
+          triggerToast('Undoing library import...', 'info')
+          
+          window.api.removeAllGames().then(res => {
+            if (!res) {
+              triggerToast('Failed to clear imported library.', 'error')
+              return
+            }
+            
+            if (gamesToRestore.length === 0) {
+              triggerToast('Library import undone successfully!', 'success')
+              fetchGames()
+              lastImportedGamesListRef.current = null
+              return
+            }
+            
+            const promises = gamesToRestore.map(game => {
+              const { coverUrl, ...cleanGame } = game
+              return window.api.saveGame(cleanGame)
+            })
+            
+            Promise.all(promises).then(results => {
+              triggerToast('Library import undone successfully!', 'success')
+              fetchGames()
+              lastImportedGamesListRef.current = null
+            }).catch(err => {
+              console.error(err)
+              triggerToast('Failed to restore games after undo', 'error')
+            })
+          }).catch(err => {
+            console.error(err)
+            triggerToast('Failed to undo import', 'error')
+          })
+        } else if (lastDeletedGamesListRef.current && lastDeletedGamesListRef.current.length > 0) {
+          const gamesToRestore = lastDeletedGamesListRef.current
+          triggerToast(`Restoring ${gamesToRestore.length} games...`, 'info')
+          
+          const promises = gamesToRestore.map(game => {
+            const { coverUrl, ...cleanGame } = game
+            return window.api.saveGame(cleanGame)
+          })
+          
+          Promise.all(promises).then(results => {
+            const successCount = results.filter(r => r.success).length
+            triggerToast(`Successfully restored ${successCount} games!`, 'success')
+            fetchGames()
+            lastDeletedGamesListRef.current = null
+          }).catch(err => {
+            console.error(err)
+            triggerToast('Failed to restore games', 'error')
+          })
+        } else if (lastDeletedGameRef.current) {
+          const game = lastDeletedGameRef.current
+          const { coverUrl, ...cleanGame } = game
+          window.api.saveGame(cleanGame).then(res => {
+            if (res.success) {
+              triggerToast(`Restored game "${game.name}"`, 'success')
+              fetchGames()
+              lastDeletedGameRef.current = null
+            } else {
+              triggerToast('Failed to restore game', 'error')
+            }
+          }).catch(console.error)
+        } else {
+          triggerToast('Nothing to undo!', 'info')
+        }
+      }
+
+      // F9 -> Toggle Sidebar
+      if (e.key === 'F9') {
+        e.preventDefault()
+        setShowSidebar(p => !p)
+      }
+
+      // F10 -> Main Menu Click dispatch
+      if (e.key === 'F10') {
+        e.preventDefault()
+        const menuBtn = document.querySelector('[title="Main Menu"]')
+        if (menuBtn) {
+          menuBtn.click()
+        }
+      }
+
+      // Escape key handlers
       if (e.key === 'Escape') {
-        const anyOpen = showAddModal || showEditModal || showAboutModal
+        const anyOpen = showAddModal || showEditModal || showAboutModal || showPreferencesModal || showShortcutsModal
         if (anyOpen) {
           setShowAddModal(false)
           setShowEditModal(false)
           setShowAboutModal(false)
+          setShowPreferencesModal(false)
+          setShowShortcutsModal(false)
         } else if (showSearch) {
           setShowSearch(false)
           setSearchTerm('')
@@ -512,7 +736,7 @@ const App = () => {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showHidden, showAddModal, showEditModal, showAboutModal, showSearch, setSearchTerm])
+  }, [showHidden, showAddModal, showEditModal, showAboutModal, showPreferencesModal, showShortcutsModal, showSearch, setSearchTerm])
 
   // Auto-focus search input when search bar opens
   useEffect(() => {
@@ -544,11 +768,59 @@ const App = () => {
 
   useEffect(() => {
     fetchGames()
+    
+    // Sync settings.json from backend to localStorage
+    if (window.api?.getSettings) {
+      window.api.getSettings().then(settings => {
+        if (settings) {
+          if (settings.use_windows_accent !== undefined) localStorage.setItem('vibeport_use_windows_accent', settings.use_windows_accent ? 'true' : 'false')
+          if (settings.exit_after_launch !== undefined) localStorage.setItem('vibeport_exit_after_launch', settings.exit_after_launch ? 'true' : 'false')
+          if (settings.auto_import !== undefined) localStorage.setItem('vibeport_auto_import', settings.auto_import ? 'true' : 'false')
+          if (settings.remove_uninstalled !== undefined) localStorage.setItem('vibeport_remove_uninstalled', settings.remove_uninstalled ? 'true' : 'false')
+          if (settings.scan_steam !== undefined) localStorage.setItem('vibeport_scan_steam', settings.scan_steam ? 'true' : 'false')
+          if (settings.scan_gog !== undefined) localStorage.setItem('vibeport_scan_gog', settings.scan_gog ? 'true' : 'false')
+          if (settings.scan_epic !== undefined) localStorage.setItem('vibeport_scan_epic', settings.scan_epic ? 'true' : 'false')
+          if (settings.scan_ea !== undefined) localStorage.setItem('vibeport_scan_ea', settings.scan_ea ? 'true' : 'false')
+          if (settings.scan_ubisoft !== undefined) localStorage.setItem('vibeport_scan_ubisoft', settings.scan_ubisoft ? 'true' : 'false')
+          if (settings.scan_bnet !== undefined) localStorage.setItem('vibeport_scan_bnet', settings.scan_bnet ? 'true' : 'false')
+        }
+      }).catch(console.error)
+    }
+
     const subs = []
     if (window.api.onGamesUpdated) subs.push(window.api.onGamesUpdated(fetchGames))
     if (window.api.onShowToast) subs.push(window.api.onShowToast((d) => { if (d?.message) triggerToast(d.message, d.type) }))
+    if (window.api.onScanProgress) {
+      subs.push(window.api.onScanProgress((progress) => {
+        setScanProgress(progress)
+      }))
+    }
     return () => subs.forEach(fn => fn())
   }, [])
+
+  // Click-eating outside dismisser in the capture phase
+  useEffect(() => {
+    if (activeMenuGameId === null) return
+
+    const handleOutsideClick = (e) => {
+      const inMenu = e.target.closest('.card-menu-container') !== null
+      const inTrigger = e.target.closest('.edit-overlay-btn') !== null
+      
+      if (inMenu || inTrigger) {
+        return
+      }
+
+      // Intercept, eat the event, and close the menu
+      e.stopPropagation()
+      e.preventDefault()
+      setActiveMenuGameId(null)
+    }
+
+    document.addEventListener('click', handleOutsideClick, true)
+    return () => {
+      document.removeEventListener('click', handleOutsideClick, true)
+    }
+  }, [activeMenuGameId])
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleLaunch = async (game, e) => {
@@ -559,6 +831,13 @@ const App = () => {
       await window.api.launchGame(game.executable)
       setLaunchStatus('success')
       try { await window.api.updateGameStatus(game.game_id, { last_played: Math.floor(Date.now() / 1000) }) } catch { /* non-fatal */ }
+      
+      if (localStorage.getItem('vibeport_exit_after_launch') === 'true') {
+        setTimeout(() => {
+          window.api?.closeWindow()
+        }, 1200)
+      }
+
       setTimeout(() => { setLaunchingGame(null); setLaunchStatus(null) }, 4000)
     } catch (err) {
       console.error('Failed to launch game:', err)
@@ -581,9 +860,93 @@ const App = () => {
     if (e?.stopPropagation) e.stopPropagation()
     if (!confirm(`Are you sure you want to remove "${game.name}" from VibePort?`)) return
     try {
+      lastDeletedGamesListRef.current = null // Clear bulk delete cache
+      lastDeletedGameRef.current = game
       await window.api.deleteGame(game.game_id)
+      triggerToast(`Removed "${game.name}". Press Ctrl+Z to undo.`, 'info')
       await fetchGames()
     } catch (e) { console.error('Failed to delete game:', e) }
+  }
+
+  const handleRemoveAllGames = async () => {
+    try {
+      // Back up all current games before wiping
+      lastDeletedGamesListRef.current = [...games]
+      lastDeletedGameRef.current = null // Clear single game delete cache
+      
+      triggerToast('Removing all games...', 'info')
+      await window.api.removeAllGames()
+      triggerToast('All games removed. Press Ctrl+Z to undo.', 'success')
+      await fetchGames()
+    } catch (e) {
+      console.error('Failed to remove all games:', e)
+      triggerToast('Failed to remove some games.', 'error')
+    }
+  }
+
+  const handleRunAutoScan = async () => {
+    const enabledLaunchers = {
+      steam: localStorage.getItem('vibeport_scan_steam') !== 'false',
+      gog: localStorage.getItem('vibeport_scan_gog') !== 'false',
+      epic: localStorage.getItem('vibeport_scan_epic') !== 'false',
+      ea: localStorage.getItem('vibeport_scan_ea') !== 'false',
+      ubisoft: localStorage.getItem('vibeport_scan_ubisoft') !== 'false',
+      bnet: localStorage.getItem('vibeport_scan_bnet') !== 'false'
+    }
+
+    // Save current games list so user can undo this import using Ctrl + Z
+    lastImportedGamesListRef.current = [...games]
+    lastDeletedGamesListRef.current = null
+    lastDeletedGameRef.current = null
+
+    triggerToast('Rerunning scanners for enabled launchers...', 'info')
+    setIsScanning(true)
+    try {
+      const res = await window.api.runAutoScan(enabledLaunchers)
+      setIsScanning(false)
+      if (res.success) {
+        triggerToast('Library import complete! Press Ctrl+Z to undo.', 'success')
+        await fetchGames()
+      } else {
+        triggerToast(`Import failed: ${res.error}`, 'error')
+      }
+    } catch (e) {
+      console.error('Auto scan error:', e)
+      setIsScanning(false)
+      triggerToast('An error occurred during library scanning.', 'error')
+    }
+  }
+
+  const handleToggleWindowsAccent = (enabled) => {
+    localStorage.setItem('vibeport_use_windows_accent', enabled ? 'true' : 'false')
+    if (enabled) {
+      if (window.api?.getAccentColor) {
+        window.api.getAccentColor().then(color => {
+          const clean = (color || DEFAULT_ACCENT).replace('#', '')
+          setAccentHex(clean)
+          applyAccentPalette(clean)
+        }).catch(console.error)
+      }
+    } else {
+      const clean = DEFAULT_ACCENT.replace('#', '')
+      setAccentHex(clean)
+      applyAccentPalette(clean)
+    }
+  }
+
+  const handleUpdateAllCovers = async () => {
+    triggerToast('Updating library cover art...', 'info')
+    try {
+      const res = await window.api.updateAllCovers()
+      if (res.success) {
+        triggerToast('Cover art update triggered in background!', 'success')
+      } else {
+        triggerToast('Failed to trigger cover update.', 'error')
+      }
+    } catch (e) {
+      console.error('Covers update error:', e)
+      triggerToast('Failed to run covers update.', 'error')
+    }
   }
 
   const resetForm = () => {
@@ -593,13 +956,21 @@ const App = () => {
 
   const openAddModal = () => { resetForm(); setShowAddModal(true) }
 
+  const handleOpenShortcuts = () => {
+    if (window.api && window.api.openShortcutsWindow) {
+      window.api.openShortcutsWindow()
+      setIsStandaloneShortcutsOpen(true)
+    } else {
+      setShowShortcutsModal(true)
+    }
+  }
+
   const openEditModal = (game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
+    resetForm()
     setEditingGame(game)
     setFormName(game.name); setFormExecutable(game.executable)
     setFormDeveloper(game.developer || ''); setFormCoverUrl(game.coverUrl || '')
-    resetForm()
-    setFormName(game.name); setFormExecutable(game.executable); setFormDeveloper(game.developer || '')
     setShowEditModal(true)
   }
 
@@ -623,7 +994,7 @@ const App = () => {
     try {
       const result = await window.api.saveGame({ game_id: editingGame.game_id, name: formName, executable: formExecutable, developer: formDeveloper || null, source: editingGame.source || 'imported' })
       if (result.success) {
-        if (formCoverUrl && formCoverUrl !== editingGame.coverUrl) await window.api.downloadCoverUrl(editingGame.game_id, formCoverUrl)
+        if (formCoverUrl !== editingGame.coverUrl) await window.api.downloadCoverUrl(editingGame.game_id, formCoverUrl)
         await fetchGames(); setShowEditModal(false); resetForm()
       } else {
         alert('Error: ' + result.error)
@@ -686,7 +1057,7 @@ const App = () => {
     (selectedSource === 'all' || g.source === selectedSource)
   )
   const sortedVisibleGames = sortGames(filterGames(activeGames), sortBy)
-  const sortedHiddenGames = sortGames(filterGames(games.filter(g => g.hidden)), sortBy)
+  const sortedHiddenGames = sortGames(games.filter(g => g.hidden && g.name.toLowerCase().includes(searchTerm.toLowerCase())), sortBy)
 
   const cardFontSize = getCardFontSize()
 
@@ -697,7 +1068,9 @@ const App = () => {
     onEdit: openEditModal, 
     onToggleHide: handleToggleHideGame,
     onDelete: handleDeleteGame,
-    onImageError: (id) => setFailedCovers(p => ({ ...p, [id]: true })) 
+    onImageError: (id) => setFailedCovers(p => ({ ...p, [id]: true })),
+    activeMenuGameId,
+    setActiveMenuGameId
   }
 
   // ── Sidebar Source Nav Items ───────────────────────────────────────────────
@@ -746,6 +1119,8 @@ const App = () => {
         showSearch={showSearch}
         setShowSearch={setShowSearch}
         openAboutModal={() => setShowAboutModal(true)}
+        openPreferencesModal={() => setShowPreferencesModal(true)}
+        openShortcutsModal={handleOpenShortcuts}
       />
 
       <div style={styles.container}>
@@ -829,7 +1204,7 @@ const App = () => {
                   <input
                     id="main-search-input"
                     type="text"
-                    placeholder={showHidden ? "Search hidden games..." : `Search ${getSourceLabel(selectedSource).toLowerCase()}...`}
+                    placeholder="Search"
                     className="search-input-focus"
                     style={styles.searchBarInput}
                     value={searchTerm}
@@ -858,6 +1233,31 @@ const App = () => {
 
                 {loading ? (
                   <div style={styles.loadingContainer}><div style={styles.spinnerLarge} /><div style={styles.loadingText}>Syncing game libraries...</div></div>
+                ) : games.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <CartridgeIcon size={48} color="#334155" style={{ marginBottom: '12px' }} />
+                    <div style={styles.emptyStateTitle}>No Games</div>
+                    <div style={styles.emptyStateSub}>Use the + button to add games</div>
+                    <button
+                      type="button"
+                      className="glass-btn glass-btn-active"
+                      style={{
+                        marginTop: '16px',
+                        padding: '10px 24px',
+                        borderRadius: '20px',
+                        fontSize: '13.5px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        backgroundColor: `#${accentHex}`,
+                        borderColor: `#${accentHex}`,
+                        color: '#ffffff',
+                        boxShadow: `0 0 15px rgba(${hexToRgb(accentHex)}, 0.3)`
+                      }}
+                      onClick={handleRunAutoScan}
+                    >
+                      Import
+                    </button>
+                  </div>
                 ) : sortedVisibleGames.length === 0 ? (
                   <div style={styles.emptyState}>
                     <CartridgeIcon size={48} color="#334155" style={{ marginBottom: '12px' }} />
@@ -916,6 +1316,7 @@ const App = () => {
               editingGame={editingGame}
               formName={formName} setFormName={setFormName}
               formExecutable={formExecutable} setFormExecutable={setFormExecutable}
+              formCoverUrl={formCoverUrl} setFormCoverUrl={setFormCoverUrl}
               onSubmit={handleEditGameSubmit} onClose={() => { setShowEditModal(false); resetForm() }}
               onToggleHide={handleToggleHideGame} onDelete={handleDeleteGame}
             />
@@ -926,6 +1327,99 @@ const App = () => {
               version={packageJson.version}
               onClose={() => setShowAboutModal(false)}
             />
+          )}
+          {showPreferencesModal && (
+            <PreferencesModal
+              accentHex={accentHex}
+              onClose={() => setShowPreferencesModal(false)}
+              onRemoveAllGames={handleRemoveAllGames}
+              onToggleWindowsAccent={handleToggleWindowsAccent}
+              onUpdateCovers={handleUpdateAllCovers}
+            />
+          )}
+          {showShortcutsModal && (
+            <ShortcutsModal
+              onClose={() => setShowShortcutsModal(false)}
+            />
+          )}
+          {isScanning && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(15, 15, 23, 0.7)',
+                backdropFilter: 'blur(12px)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 15 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 15 }}
+                style={{
+                  width: '380px',
+                  backgroundColor: 'rgba(28, 28, 30, 0.94)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '16px',
+                  padding: '32px 24px',
+                  boxShadow: '0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px var(--accent-glow-faint)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '24px',
+                  textAlign: 'center'
+                }}
+              >
+                <div style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#f8fafc',
+                  letterSpacing: '-0.3px'
+                }}>
+                  Importing Games...
+                </div>
+                {/* Custom Animated Real Progress Bar */}
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: '3px',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <motion.div
+                    animate={{
+                      width: `${(scanProgress.current / (scanProgress.total || 100)) * 100}%`
+                    }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 80,
+                      damping: 15
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      height: '100%',
+                      backgroundColor: `#${accentHex}`,
+                      borderRadius: '3px',
+                      boxShadow: `0 0 10px rgba(${hexToRgb(accentHex)}, 0.5)`
+                    }}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

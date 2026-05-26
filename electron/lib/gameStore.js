@@ -4,6 +4,30 @@ import { spawn } from 'node:child_process'
 import sharp from 'sharp'
 import { gamesPath, coversDir } from './paths.js'
 
+// Helper: Checks if a buffer represents an Animated PNG (APNG)
+function isApng(buffer) {
+  if (buffer.length < 8) return false
+  const pngSig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+  for (let i = 0; i < 8; i++) {
+    if (buffer[i] !== pngSig[i]) return false
+  }
+
+  let pos = 8
+  while (pos < buffer.length - 12) {
+    const length = buffer.readUInt32BE(pos)
+    const type = buffer.toString('ascii', pos + 4, pos + 8)
+    if (type === 'acTL') {
+      return true
+    }
+    if (type === 'IDAT' || type === 'IEND') {
+      break
+    }
+    pos += 12 + length
+    if (length <= 0) break
+  }
+  return false
+}
+
 // ─── GIF Repair ──────────────────────────────────────────────────────────────
 // Attempts to repair a corrupt GIF in-place using Python + Pillow.
 export function repairGif(filePath) {
@@ -71,12 +95,17 @@ export async function resolveCoverUrl(gameId) {
 
   // Auto-optimize / downsize large covers in place (static and animated)
   try {
-    const metadata = await sharp(fullPath).metadata()
+    const buffer = fs.readFileSync(fullPath)
+    if (isApng(buffer)) {
+      // Completely skip APNGs because sharp cannot resize animations in PNG format without stripping animation frames
+      return `media://${fullPath.replace(/\\/g, '/')}`
+    }
+
+    const metadata = await sharp(buffer).metadata()
     if (metadata.width && metadata.width > 300) {
       console.log(`[COVER-OPTIMIZE] Cover ${coverFile} is too large (${metadata.width}x${metadata.height}). Downsizing to 300px width in-place...`)
       const isAnimated = metadata.pages && metadata.pages > 1
       const ext = path.extname(coverFile).toLowerCase()
-      const buffer = fs.readFileSync(fullPath)
       
       let sharpInstance = sharp(buffer, { animated: isAnimated, limitInputPixels: false })
         .resize({ width: 300, height: 450, fit: 'cover' })

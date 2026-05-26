@@ -79,6 +79,7 @@ export function buildAccentPalette(hex) {
     '--accent-glow-strong': `rgba(${r},${g},${b},0.35)`,
     '--bg-deep': `rgb(${Math.round(r * 0.04 + 14)},${Math.round(g * 0.04 + 12)},${Math.round(b * 0.06 + 20)})`,
     '--bg-mid': `rgba(${Math.round(r * 0.06 + 20)},${Math.round(g * 0.06 + 18)},${Math.round(b * 0.08 + 28)},0.95)`,
+    '--bg-mid-solid': `rgb(${Math.round(r * 0.06 + 20)},${Math.round(g * 0.06 + 18)},${Math.round(b * 0.08 + 28)})`,
     '--sidebar-bg': `rgba(${Math.round(r * 0.01 + 6)},${Math.round(g * 0.01 + 5)},${Math.round(b * 0.02 + 9)},0.98)`,
   }
 }

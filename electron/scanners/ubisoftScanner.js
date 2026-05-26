@@ -3,6 +3,7 @@ import path from 'node:path'
 import { exec, execSync } from 'node:child_process'
 import { gamesPath } from '../lib/paths.js'
 import { writeGame, removeCoverFiles } from '../lib/gameStore.js'
+import { getSettingsData } from '../lib/settings.js'
 
 function getUbisoftGameNameFromState(stateFilePath) {
   if (!fs.existsSync(stateFilePath)) return null
@@ -31,6 +32,12 @@ function getUbisoftGameNameFromState(stateFilePath) {
     const list = Array.from(candidates).filter(s => {
       if (s.length === 40 && /^[0-9a-fA-F]+$/.test(s)) return false
       if (['EULA', 'en-US', 'en-GB'].includes(s)) return false
+      const lower = s.toLowerCase()
+      if (lower.includes('license agreement')) return false
+      if (lower.includes('user license')) return false
+      if (lower.includes('end user')) return false
+      if (lower.includes('eula')) return false
+      if (lower.includes('vcredist')) return false
       if (s.startsWith('vcredist')) return false
       return true
     })
@@ -165,7 +172,8 @@ export function scanUbisoftLibrary() {
         }
 
         // Remove uninstalled Ubisoft games
-        if (fs.existsSync(gamesPath)) {
+        const settings = getSettingsData()
+        if (settings.remove_uninstalled !== false && fs.existsSync(gamesPath)) {
           for (const dbFile of fs.readdirSync(gamesPath).filter(f => f.startsWith('ubisoft_') && f.endsWith('.json'))) {
             const gameId = dbFile.replace('.json', '')
             if (!foundIds.has(gameId)) {
