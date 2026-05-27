@@ -497,6 +497,11 @@ const App = () => {
   const handleUndo = () => {
     if (lastImportedGamesListRef.current) {
       const gamesToRestore = lastImportedGamesListRef.current
+      // Clear all refs immediately to prevent duplicate triggers or stale state pollution
+      lastImportedGamesListRef.current = null
+      lastDeletedGamesListRef.current = null
+      lastDeletedGameRef.current = null
+
       triggerToast('Undoing library import...', 'info')
       
       window.api.removeAllGames().then(res => {
@@ -508,7 +513,6 @@ const App = () => {
         if (gamesToRestore.length === 0) {
           triggerToast('Library import undone successfully!', 'success')
           fetchGames()
-          lastImportedGamesListRef.current = null
           return
         }
         
@@ -520,7 +524,6 @@ const App = () => {
         Promise.all(promises).then(results => {
           triggerToast('Library import undone successfully!', 'success')
           fetchGames()
-          lastImportedGamesListRef.current = null
         }).catch(err => {
           console.error(err)
           triggerToast('Failed to restore games after undo', 'error')
@@ -531,6 +534,11 @@ const App = () => {
       })
     } else if (lastDeletedGamesListRef.current && lastDeletedGamesListRef.current.length > 0) {
       const gamesToRestore = lastDeletedGamesListRef.current
+      // Clear all refs immediately
+      lastImportedGamesListRef.current = null
+      lastDeletedGamesListRef.current = null
+      lastDeletedGameRef.current = null
+
       triggerToast(`Restoring ${gamesToRestore.length} games...`, 'info')
       
       const promises = gamesToRestore.map(game => {
@@ -542,19 +550,22 @@ const App = () => {
         const successCount = results.filter(r => r.success).length
         triggerToast(`Successfully restored ${successCount} games!`, 'success')
         fetchGames()
-        lastDeletedGamesListRef.current = null
       }).catch(err => {
         console.error(err)
         triggerToast('Failed to restore games', 'error')
       })
     } else if (lastDeletedGameRef.current) {
       const game = lastDeletedGameRef.current
+      // Clear all refs immediately
+      lastImportedGamesListRef.current = null
+      lastDeletedGamesListRef.current = null
+      lastDeletedGameRef.current = null
+
       const { coverUrl, ...cleanGame } = game
       window.api.saveGame(cleanGame).then(res => {
         if (res.success) {
           triggerToast(`Restored game "${game.name}"`, 'success')
           fetchGames()
-          lastDeletedGameRef.current = null
         } else {
           triggerToast('Failed to restore game', 'error')
         }
@@ -849,8 +860,9 @@ const App = () => {
     if (e?.stopPropagation) e.stopPropagation()
     if (!confirm(`Are you sure you want to remove "${game.name}" from VibePort?`)) return
     try {
+      lastImportedGamesListRef.current = null // Clear import cache!
       lastDeletedGamesListRef.current = null // Clear bulk delete cache
-      lastDeletedGameRef.current = game
+      lastDeletedGameRef.current = game      // Set this cache exclusively
       await window.api.deleteGame(game.game_id)
       triggerToast(`Removed "${game.name}".`, 'info', true)
       await fetchGames()
@@ -860,8 +872,9 @@ const App = () => {
   const handleRemoveAllGames = async () => {
     try {
       // Back up all current games before wiping
-      lastDeletedGamesListRef.current = [...games]
-      lastDeletedGameRef.current = null // Clear single game delete cache
+      lastImportedGamesListRef.current = null      // Clear import cache!
+      lastDeletedGamesListRef.current = [...games] // Set this cache exclusively
+      lastDeletedGameRef.current = null            // Clear single game delete cache
       
       triggerToast('Removing all games...', 'info')
       await window.api.removeAllGames()
