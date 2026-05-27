@@ -31,7 +31,8 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
       }
       buffer = Buffer.from(await res.arrayBuffer())
     } else {
-      let localPath = imageUrl.replace(/^media:\/\/\/?/, '')
+      const cleanUrl = imageUrl.split('?')[0]
+      let localPath = cleanUrl.replace(/^media:\/\/\/?/, '')
       if (localPath.match(/^\/[a-zA-Z]:/)) {
         localPath = localPath.substring(1)
       }

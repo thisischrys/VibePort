@@ -823,7 +823,8 @@ app.whenReady().then(() => {
   // Register media:// protocol for serving local cover images
   protocol.handle('media', async (request) => {
     try {
-      let urlStr = request.url.replace(/^media:\/\/\/?/, 'file:///')
+      const cleanUrl = request.url.split('?')[0]
+      let urlStr = cleanUrl.replace(/^media:\/\/\/?/, 'file:///')
       if (urlStr.match(/^file:\/\/\/[a-zA-Z]\//)) {
         urlStr = urlStr.replace(/^file:\/\/\/([a-zA-Z])\//, 'file:///$1:/')
       }

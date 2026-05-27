@@ -98,7 +98,8 @@ export async function resolveCoverUrl(gameId) {
     const buffer = fs.readFileSync(fullPath)
     if (isApng(buffer)) {
       // Completely skip APNGs because sharp cannot resize animations in PNG format without stripping animation frames
-      return `media://${fullPath.replace(/\\/g, '/')}`
+      const mtime = fs.statSync(fullPath).mtimeMs
+      return `media://${fullPath.replace(/\\/g, '/')}?t=${mtime}`
     }
 
     const metadata = await sharp(buffer).metadata()
@@ -128,7 +129,8 @@ export async function resolveCoverUrl(gameId) {
     console.error(`[COVER-OPTIMIZE] Failed to optimize cover ${coverFile}:`, err.message)
   }
 
-  return `media://${fullPath.replace(/\\/g, '/')}`
+  const mtime = fs.statSync(fullPath).mtimeMs
+  return `media://${fullPath.replace(/\\/g, '/')}?t=${mtime}`
 }
 
 // ─── Load All Games ───────────────────────────────────────────────────────────
