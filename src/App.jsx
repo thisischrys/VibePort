@@ -1338,12 +1338,13 @@ const App = () => {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: 'rgba(15, 15, 23, 0.7)',
-                backdropFilter: 'blur(12px)',
+                backgroundColor: 'rgba(0, 0, 0, 0)',
+                backdropFilter: 'none',
                 zIndex: 9999,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                WebkitAppRegion: 'drag' // Draggable overlay!
               }}
             >
               <motion.div
@@ -1361,7 +1362,8 @@ const App = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '24px',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  WebkitAppRegion: 'no-drag' // Stop drag inside card content area
                 }}
               >
                 <div style={{
