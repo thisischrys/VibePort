@@ -523,28 +523,67 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
       const candidates = allExes.filter(exe => !ignoredKeywords.some(k => exe.name.toLowerCase().includes(k)))
       const pool = candidates.length > 0 ? candidates : allExes
 
-      const normalizeRoman = (str) => {
-        return str
-          .replace(/viii$/, '8')
-          .replace(/vii$/, '7')
-          .replace(/vi$/, '6')
-          .replace(/iii$/, '3')
-          .replace(/ii$/, '2')
-          .replace(/iv$/, '4')
-          .replace(/v$/, '5')
-          .replace(/ix$/, '9')
-          .replace(/x$/, '10')
+      // Smart matching algorithm that handles roman numerals, acronyms, and abbreviations
+      const isGameExeMatch = (dir, exe) => {
+        const cleanDir = dir.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
+        const cleanExe = exe.toLowerCase().replace('.exe', '').replace(/[^a-z0-9\s]/g, ' ')
+
+        const normalizeText = (text) => {
+          return text
+            .replace(/\bviii\b/g, '8')
+            .replace(/\bvii\b/g, '7')
+            .replace(/\bvi\b/g, '6')
+            .replace(/\biii\b/g, '3')
+            .replace(/\bii\b/g, '2')
+            .replace(/\biv\b/g, '4')
+            .replace(/\bv\b/g, '5')
+            .replace(/\bix\b/g, '9')
+            .replace(/\bx\b/g, '10')
+        }
+
+        const dirNorm = normalizeText(cleanDir)
+        const exeNorm = normalizeText(cleanExe)
+
+        const dirWords = dirNorm.split(/\s+/).filter(Boolean)
+        const exeJoined = exeNorm.replace(/\s+/g, '')
+        const dirJoined = dirNorm.replace(/\s+/g, '')
+
+        // 1. Direct substring match (e.g. "cyberpunk2077" matches "cyberpunk2077.exe")
+        if (dirJoined.includes(exeJoined) || exeJoined.includes(dirJoined)) return true
+
+        // 2. Acronym generation with trailing words/numbers (e.g. "final fantasy 7 rebirth" -> "ff7rebirth")
+        let initials = ''
+        let suffix = ''
+        let foundNumber = false
+
+        for (const word of dirWords) {
+          if (/^\d+$/.test(word)) {
+            foundNumber = true
+            suffix += word
+          } else if (foundNumber) {
+            suffix += word
+          } else {
+            initials += word[0] || ''
+          }
+        }
+
+        const acronymCandidate = (initials + suffix).toLowerCase()
+        if (acronymCandidate.length > 2 && (exeJoined.includes(acronymCandidate) || acronymCandidate.includes(exeJoined))) {
+          return true
+        }
+
+        // 3. Full words acronym check (e.g. "grand theft auto v" -> "gtav")
+        const rawWords = cleanDir.split(/\s+/).filter(Boolean)
+        const fullAcronym = rawWords.map(w => w[0] || '').join('')
+        if (fullAcronym.length > 2 && (exeJoined === fullAcronym || exeJoined.includes(fullAcronym))) {
+          return true
+        }
+
+        return false
       }
 
       let selectedExe
-      const stripped = cleanDirName.replace(/[^a-z0-9]/g, '')
-      const strippedNorm = normalizeRoman(stripped)
-      const directMatches = pool.filter(exe => {
-        const clean = exe.name.toLowerCase().replace('.exe', '').replace(/[^a-z0-9]/g, '')
-        const cleanNorm = normalizeRoman(clean)
-        return clean.includes(stripped) || stripped.includes(clean) ||
-               cleanNorm.includes(strippedNorm) || strippedNorm.includes(cleanNorm)
-      })
+      const directMatches = pool.filter(exe => isGameExeMatch(dirName, exe.name))
 
       if (directMatches.length === 1) {
         selectedExe = directMatches[0]
