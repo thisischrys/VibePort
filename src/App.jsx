@@ -492,7 +492,77 @@ const App = () => {
   useEffect(() => { localStorage.setItem('vibeport_show_sidebar', showSidebar) }, [showSidebar])
 
   // ── Toast ──────────────────────────────────────────────────────────────────
-  const triggerToast = (message, type = 'info') => setActiveToast({ message, type })
+  const triggerToast = (message, type = 'info', showUndo = false) => setActiveToast({ message, type, showUndo })
+
+  const handleUndo = () => {
+    if (lastImportedGamesListRef.current) {
+      const gamesToRestore = lastImportedGamesListRef.current
+      triggerToast('Undoing library import...', 'info')
+      
+      window.api.removeAllGames().then(res => {
+        if (!res) {
+          triggerToast('Failed to clear imported library.', 'error')
+          return
+        }
+        
+        if (gamesToRestore.length === 0) {
+          triggerToast('Library import undone successfully!', 'success')
+          fetchGames()
+          lastImportedGamesListRef.current = null
+          return
+        }
+        
+        const promises = gamesToRestore.map(game => {
+          const { coverUrl, ...cleanGame } = game
+          return window.api.saveGame(cleanGame)
+        })
+        
+        Promise.all(promises).then(results => {
+          triggerToast('Library import undone successfully!', 'success')
+          fetchGames()
+          lastImportedGamesListRef.current = null
+        }).catch(err => {
+          console.error(err)
+          triggerToast('Failed to restore games after undo', 'error')
+        })
+      }).catch(err => {
+        console.error(err)
+        triggerToast('Failed to undo import', 'error')
+      })
+    } else if (lastDeletedGamesListRef.current && lastDeletedGamesListRef.current.length > 0) {
+      const gamesToRestore = lastDeletedGamesListRef.current
+      triggerToast(`Restoring ${gamesToRestore.length} games...`, 'info')
+      
+      const promises = gamesToRestore.map(game => {
+        const { coverUrl, ...cleanGame } = game
+        return window.api.saveGame(cleanGame)
+      })
+      
+      Promise.all(promises).then(results => {
+        const successCount = results.filter(r => r.success).length
+        triggerToast(`Successfully restored ${successCount} games!`, 'success')
+        fetchGames()
+        lastDeletedGamesListRef.current = null
+      }).catch(err => {
+        console.error(err)
+        triggerToast('Failed to restore games', 'error')
+      })
+    } else if (lastDeletedGameRef.current) {
+      const game = lastDeletedGameRef.current
+      const { coverUrl, ...cleanGame } = game
+      window.api.saveGame(cleanGame).then(res => {
+        if (res.success) {
+          triggerToast(`Restored game "${game.name}"`, 'success')
+          fetchGames()
+          lastDeletedGameRef.current = null
+        } else {
+          triggerToast('Failed to restore game', 'error')
+        }
+      }).catch(console.error)
+    } else {
+      triggerToast('Nothing to undo!', 'info')
+    }
+  }
 
   useEffect(() => {
     if (!activeToast) return
@@ -618,73 +688,7 @@ const App = () => {
       // Ctrl + Z -> Undo Deleted Custom Game, Bulk Delete, or Library Import
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault()
-        if (lastImportedGamesListRef.current) {
-          const gamesToRestore = lastImportedGamesListRef.current
-          triggerToast('Undoing library import...', 'info')
-          
-          window.api.removeAllGames().then(res => {
-            if (!res) {
-              triggerToast('Failed to clear imported library.', 'error')
-              return
-            }
-            
-            if (gamesToRestore.length === 0) {
-              triggerToast('Library import undone successfully!', 'success')
-              fetchGames()
-              lastImportedGamesListRef.current = null
-              return
-            }
-            
-            const promises = gamesToRestore.map(game => {
-              const { coverUrl, ...cleanGame } = game
-              return window.api.saveGame(cleanGame)
-            })
-            
-            Promise.all(promises).then(results => {
-              triggerToast('Library import undone successfully!', 'success')
-              fetchGames()
-              lastImportedGamesListRef.current = null
-            }).catch(err => {
-              console.error(err)
-              triggerToast('Failed to restore games after undo', 'error')
-            })
-          }).catch(err => {
-            console.error(err)
-            triggerToast('Failed to undo import', 'error')
-          })
-        } else if (lastDeletedGamesListRef.current && lastDeletedGamesListRef.current.length > 0) {
-          const gamesToRestore = lastDeletedGamesListRef.current
-          triggerToast(`Restoring ${gamesToRestore.length} games...`, 'info')
-          
-          const promises = gamesToRestore.map(game => {
-            const { coverUrl, ...cleanGame } = game
-            return window.api.saveGame(cleanGame)
-          })
-          
-          Promise.all(promises).then(results => {
-            const successCount = results.filter(r => r.success).length
-            triggerToast(`Successfully restored ${successCount} games!`, 'success')
-            fetchGames()
-            lastDeletedGamesListRef.current = null
-          }).catch(err => {
-            console.error(err)
-            triggerToast('Failed to restore games', 'error')
-          })
-        } else if (lastDeletedGameRef.current) {
-          const game = lastDeletedGameRef.current
-          const { coverUrl, ...cleanGame } = game
-          window.api.saveGame(cleanGame).then(res => {
-            if (res.success) {
-              triggerToast(`Restored game "${game.name}"`, 'success')
-              fetchGames()
-              lastDeletedGameRef.current = null
-            } else {
-              triggerToast('Failed to restore game', 'error')
-            }
-          }).catch(console.error)
-        } else {
-          triggerToast('Nothing to undo!', 'info')
-        }
+        handleUndo()
       }
 
       // F9 -> Toggle Sidebar
@@ -848,7 +852,7 @@ const App = () => {
       lastDeletedGamesListRef.current = null // Clear bulk delete cache
       lastDeletedGameRef.current = game
       await window.api.deleteGame(game.game_id)
-      triggerToast(`Removed "${game.name}". Press Ctrl+Z to undo.`, 'info')
+      triggerToast(`Removed "${game.name}".`, 'info', true)
       await fetchGames()
     } catch (e) { console.error('Failed to delete game:', e) }
   }
@@ -861,7 +865,7 @@ const App = () => {
       
       triggerToast('Removing all games...', 'info')
       await window.api.removeAllGames()
-      triggerToast('All games removed. Press Ctrl+Z to undo.', 'success')
+      triggerToast('All games removed.', 'success', true)
       await fetchGames()
     } catch (e) {
       console.error('Failed to remove all games:', e)
@@ -890,7 +894,7 @@ const App = () => {
       const res = await window.api.runAutoScan(enabledLaunchers)
       setIsScanning(false)
       if (res.success) {
-        triggerToast('Library import complete! Press Ctrl+Z to undo.', 'success')
+        triggerToast('Library import complete!', 'success', true)
         await fetchGames()
       } else {
         triggerToast(`Import failed: ${res.error}`, 'error')
@@ -1160,12 +1164,44 @@ const App = () => {
                 initial={{ opacity: 0, y: -50, scale: 0.9, x: '-50%' }}
                 animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
                 exit={{ opacity: 0, y: -20, scale: 0.95, x: '-50%' }}
-                style={{ ...styles.toast, top: launchingGame ? '80px' : '20px', ...(activeToast.type === 'error' ? styles.toastError : activeToast.type === 'success' ? styles.toastSuccess : {}) }}
+                style={{
+                  ...styles.toast,
+                  top: launchingGame ? '80px' : '20px',
+                  ...(activeToast.type === 'error' ? styles.toastError : activeToast.type === 'success' ? styles.toastSuccess : {}),
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
               >
                 {activeToast.type === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
                   : activeToast.type === 'error' ? <AlertCircle size={18} color="#f87171" />
                   : <Info size={18} color={`#${accentHex}`} />}
                 <span style={styles.toastText}>{activeToast.message}</span>
+                {activeToast.showUndo && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleUndo()
+                      setActiveToast(null)
+                    }}
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      color: '#f8fafc',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      marginLeft: '6px',
+                      fontFamily: "'Outfit', sans-serif"
+                    }}
+                    className="glass-btn"
+                  >
+                    Undo
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
