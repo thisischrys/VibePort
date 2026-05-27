@@ -91,7 +91,10 @@ const EditGameModal = ({
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      style={styles.modalOverlayClear}
+      style={{
+        ...styles.modalOverlayClear,
+        WebkitAppRegion: 'drag', // Make overlay background draggable to move main window!
+      }}
       onClick={onClose}
     >
       <motion.div
@@ -103,13 +106,25 @@ const EditGameModal = ({
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '92vh',
-          height: '560px' // Perfectly centered height bounds
+          height: '660px', // Increased height to comfortably fit 200x300 cover preview
+          WebkitAppRegion: 'no-drag' // Stop drag inside card content area
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', WebkitAppRegion: 'no-drag' }}>
           {/* Header Bar */}
-          <div style={{ ...styles.modalHeader, borderBottom: 'none', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', flexShrink: 0 }}>
+          <div style={{
+            ...styles.modalHeader,
+            borderBottom: 'none',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            flexShrink: 0,
+            WebkitAppRegion: 'drag', // Dragging the modal header moves the window!
+            userSelect: 'none',
+          }}>
             <button
               type="button"
               className="glass-btn"
@@ -122,7 +137,8 @@ const EditGameModal = ({
                 border: '1px solid rgba(255, 255, 255, 0.05)',
                 backgroundColor: 'rgba(255, 255, 255, 0.04)',
                 color: '#cbd5e1',
-                zIndex: 10
+                zIndex: 10,
+                WebkitAppRegion: 'no-drag',
               }}
               onClick={onClose}
             >
@@ -136,7 +152,7 @@ const EditGameModal = ({
               fontSize: '15px',
               fontWeight: '700',
               color: '#f8fafc',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
             }}>
               Game Details
             </div>
@@ -154,7 +170,8 @@ const EditGameModal = ({
                 color: hasChanges ? '#ffffff' : 'rgba(255, 255, 255, 0.3)',
                 boxShadow: hasChanges ? `0 0 15px rgba(${hexToRgb(accentHex)}, 0.3)` : 'none',
                 opacity: hasChanges ? 1 : 0.4,
-                zIndex: 10
+                zIndex: 10,
+                WebkitAppRegion: 'no-drag',
               }}
               disabled={!hasChanges}
             >
@@ -175,14 +192,15 @@ const EditGameModal = ({
               gap: '16px',
               boxSizing: 'border-box',
               borderRight: showSgdb ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
-              transition: 'border-right 0.3s'
+              transition: 'border-right 0.3s',
+              overflowY: 'auto'
             }}>
               {/* Centered Game Cover Image Section */}
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px', width: '100%' }}>
                 <div style={{
                   position: 'relative',
-                  width: '150px',
-                  height: '200px',
+                  width: '200px',
+                  height: '300px',
                   borderRadius: '12px',
                   overflow: 'hidden',
                   backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -190,7 +208,8 @@ const EditGameModal = ({
                   boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  flexShrink: 0
                 }}>
                   {formCoverUrl ? (
                     <img
@@ -492,21 +511,6 @@ const EditGameModal = ({
                                       }
                                     }}
                                   />
-                                  {/* Animated / Static Badge Overlay */}
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: '4px',
-                                    left: '4px',
-                                    padding: '2px 4px',
-                                    borderRadius: '4px',
-                                    backgroundColor: 'rgba(0,0,0,0.7)',
-                                    fontSize: '8px',
-                                    fontWeight: '700',
-                                    color: c.type === 'animated' ? `#${accentHex}` : '#cbd5e1',
-                                    textTransform: 'uppercase'
-                                  }}>
-                                    {c.type === 'animated' ? 'Animated' : 'Static'}
-                                  </div>
                                 </div>
                               )
                             })}

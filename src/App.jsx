@@ -108,11 +108,12 @@ const GLOBAL_CSS = `
     background-color: rgba(239, 68, 68, 0.1) !important;
   }
 
-  /* Fluid Responsive Grid and Card sizing system based on height and width */
+  /* Grid and Card sizing system - always 200px wide, cover is 300px tall */
   .game-grid {
     display: grid !important;
     gap: 32px !important;
-    grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, 200px) !important;
+    justify-content: center !important;
   }
 
   .grid-container {
@@ -121,25 +122,21 @@ const GLOBAL_CSS = `
   }
 
   .game-card-hover {
-    max-width: 320px !important;
+    width: 200px !important;
   }
 
   .game-title {
     font-size: 15.5px !important;
   }
 
-  /* Height-based responsive tiers to keep card dimensions perfectly proportional */
+  /* Height-based responsive tiers for padding and font-size only, keeping card dimensions constant */
   @media (max-height: 1050px) {
     .grid-container {
       padding: 32px !important;
       padding-bottom: 64px !important;
     }
     .game-grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)) !important;
       gap: 28px !important;
-    }
-    .game-card-hover {
-      max-width: 220px !important;
     }
     .game-title {
       font-size: 13.5px !important;
@@ -152,11 +149,7 @@ const GLOBAL_CSS = `
       padding-bottom: 48px !important;
     }
     .game-grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)) !important;
       gap: 20px !important;
-    }
-    .game-card-hover {
-      max-width: 170px !important;
     }
     .game-title {
       font-size: 12.5px !important;
@@ -169,11 +162,7 @@ const GLOBAL_CSS = `
       padding-bottom: 32px !important;
     }
     .game-grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr)) !important;
       gap: 14px !important;
-    }
-    .game-card-hover {
-      max-width: 130px !important;
     }
     .game-title {
       font-size: 11px !important;
@@ -186,11 +175,7 @@ const GLOBAL_CSS = `
       padding-bottom: 24px !important;
     }
     .game-grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(90px, 100%), 1fr)) !important;
       gap: 10px !important;
-    }
-    .game-card-hover {
-      max-width: 100px !important;
     }
     .game-title {
       font-size: 9.5px !important;
