@@ -2,6 +2,15 @@
 
 A beautiful, lightweight, and modern game launcher built with React, Vite, and Electron. It aggregates your games from Steam, GOG, Epic Games, EA App, Ubisoft Connect, Battle.net, and custom folders into one gorgeous unified library.
 
+<p align="left">
+  <a href="https://github.com/thisischrys/VibePort/releases/latest/download/VibePort%20Setup.exe">
+    <img src="https://img.shields.io/badge/Download-VibePort%20Setup-blueviolet?style=for-the-badge&logo=windows&logoColor=white" alt="Download VibePort" />
+  </a>
+  <a href="https://github.com/thisischrys/VibePort/releases/latest">
+    <img src="https://img.shields.io/github/v/release/thisischrys/VibePort?style=for-the-badge&color=blue" alt="Latest Release" />
+  </a>
+</p>
+
 This project is a **spiritual fork** of the fantastic open-source Linux game launcher [Cartridges](https://github.com/kra-mo/cartridges) by Laura Kramolis (`kra-mo`), rebuilt from the ground up for a native Windows experience.
 
 ---
