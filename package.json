@@ -37,7 +37,8 @@
     "publish": {
       "provider": "github",
       "owner": "thisischrys",
-      "repo": "VibePort"
+      "repo": "VibePort",
+      "tagNamePrefix": ""
     },
     "directories": {
       "output": "dist-app"
