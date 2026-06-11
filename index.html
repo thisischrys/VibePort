@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VibePort</title>
+    <!-- Preconnecting and fetching premium typography from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      if (window.location.hash === '#shortcuts') {
+        document.documentElement.style.setProperty('background', 'transparent', 'important');
+        document.documentElement.style.setProperty('background-color', 'transparent', 'important');
+        const style = document.createElement('style');
+        style.innerHTML = 'html, body, #root { background: transparent !important; background-color: transparent !important; }';
+        document.head.appendChild(style);
+      }
+    </script>
+    <style>
+      * {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      input, textarea, [contenteditable="true"] {
+        user-select: text !important;
+        -webkit-user-select: text !important;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #0c0b14;
+        color: #f1f5f9;
+        font-family: 'Inter', sans-serif;
+        overflow-x: hidden;
+      }
+      /* Custom Premium Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0c0b14;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #222035;
+        border-radius: 99px;
+        border: 2px solid #0c0b14;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #3e3b5e;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

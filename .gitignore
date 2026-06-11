@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-electron/
+.env
+*.local
+.DS_Store
+.aider*
+.aider-desk/
+.antigravitycli/
+scratch/
+dist-app/
+legacy_chat_transcript.md

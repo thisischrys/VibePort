@@ -1,0 +1,58 @@
+{
+  "name": "vibeport",
+  "version": "1.0.0",
+  "description": "Native Windows Game Launcher",
+  "main": "dist-electron/main.js",
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thisischrys/VibePort.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && electron-builder --publish never",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "framer-motion": "^11.0.0",
+    "lucide-react": "^0.344.0",
+    "protobufjs": "^8.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^29.1.0",
+    "electron-builder": "^26.8.1",
+    "vite": "^5.1.4",
+    "vite-plugin-electron": "^0.28.1",
+    "vite-plugin-electron-renderer": "^0.14.5"
+  },
+  "build": {
+    "appId": "com.vibeport.app",
+    "productName": "VibePort",
+    "publish": {
+      "provider": "github",
+      "owner": "thisischrys",
+      "repo": "VibePort"
+    },
+    "directories": {
+      "output": "dist-app"
+    },
+    "win": {
+      "icon": "build/icon_transparent.png",
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VibePort",
+      "artifactName": "${productName} Setup.${ext}"
+    }
+  }
+}
