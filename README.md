@@ -3,7 +3,7 @@
 A beautiful, lightweight, and modern game launcher built with React, Vite, and Electron. It aggregates your games from Steam, GOG, Epic Games, EA App, Ubisoft Connect, Battle.net, and custom folders into one gorgeous unified library.
 
 <p align="left">
-  <a href="https://github.com/thisischrys/VibePort/releases/latest/download/VibePort%20Setup.exe">
+  <a href="https://github.com/thisischrys/VibePort/releases/latest/download/VibePort-Setup.exe">
     <img src="https://img.shields.io/badge/Download-VibePort%20Setup-blueviolet?style=for-the-badge&logo=windows&logoColor=white" alt="Download VibePort" />
   </a>
 </p>
