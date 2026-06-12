@@ -81,7 +81,7 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
       targetPath = path.join(coversDir, `${gameId}${animExt}`)
       try {
         await sharp(buffer, { animated: true, limitInputPixels: false })
-          .resize({ width: 300, height: 450, fit: 'cover' })
+          .resize({ width: 600, height: 900, fit: 'cover' })
           .toFile(targetPath)
       } catch (sharpErr) {
         console.warn(`[SHARP] Animated compression failed for ${gameId}, saving original: ${sharpErr.message}`)
@@ -99,10 +99,10 @@ export async function downloadCoverFromUrl(gameId, imageUrl, notifyRenderer) {
     } else {
       targetPath = path.join(coversDir, `${gameId}.webp`)
       try {
-        // Permanently compress and resize to a 300x450 WebP for smooth rendering
-        await sharp(buffer, { limitInputPixels: false })
-          .resize({ width: 300, height: 450, fit: 'cover' })
-          .webp({ quality: 80, effort: 4 })
+        // Permanently compress and resize to a 600x900 WebP for smooth rendering
+        await sharp(buffer)
+          .resize({ width: 600, height: 900, fit: 'cover' })
+          .webp({ quality: 85 })
           .toFile(targetPath)
       } catch (sharpErr) {
         console.warn(`[SHARP] Compression failed for ${gameId}, saving original: ${sharpErr.message}`)

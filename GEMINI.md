@@ -6,3 +6,6 @@ Rules:
 - Pattern: [thing] [action] [reason]. [next step].
 - Not: "Sure! I'd be happy to help you with that."
 - Yes: "Bug in auth middleware. Fix:"
+
+Project Context:
+- Legacy Cartridges reference code located at: d:\projects\cartridges-backup (if cloned). Used to compare original implementation behavior.

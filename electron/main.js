@@ -32,6 +32,8 @@ import { scanEpicLibrary } from './scanners/epicScanner.js'
 import { scanEaLibrary } from './scanners/eaScanner.js'
 import { scanUbisoftLibrary } from './scanners/ubisoftScanner.js'
 import { scanBattlenetLibrary } from './scanners/battlenetScanner.js'
+import { scanXboxLibrary } from './scanners/xboxScanner.js'
+import { scanAmazonLibrary } from './scanners/amazonScanner.js'
 import { IPC_EVENTS } from '../src/shared/ipc-events.js'
 
 if (process.platform === 'win32') {
@@ -844,6 +846,14 @@ ipcMain.handle(IPC_EVENTS.RUN_AUTO_SCAN, async (event, enabledLaunchers) => {
       scanManager.sendProgress(9, 100, 'Scanning Battle.net launcher...', 'import')
       promises.push(scanBattlenetLibrary())
     }
+    if (enabledLaunchers.xbox) {
+      scanManager.sendProgress(9, 100, 'Scanning Xbox App...', 'import')
+      promises.push(scanXboxLibrary())
+    }
+    if (enabledLaunchers.amazon) {
+      scanManager.sendProgress(9, 100, 'Scanning Amazon Games...', 'import')
+      promises.push(scanAmazonLibrary())
+    }
     
     await Promise.all(promises)
     console.log('[AUTO-SCAN] Scan rerun complete.')
@@ -927,16 +937,6 @@ ipcMain.handle(IPC_EVENTS.UNDO_IMPORT, async (event, gamesToRestore) => {
       console.log(`[UNDO] Deleting newly added game during undo: ${gameId}`)
       deleteGameFile(gameId)
     }
-
-
-    for (const game of gamesToRestore) {
-      const { coverUrl, ...cleanGame } = game
-      try {
-        writeGame(game.game_id, cleanGame)
-      } catch (err) {
-        console.error(`[UNDO] Failed to restore game ${game.game_id}:`, err.message)
-      }
-    }
     
     notifyRenderer()
     return true
@@ -947,25 +947,47 @@ ipcMain.handle(IPC_EVENTS.UNDO_IMPORT, async (event, gamesToRestore) => {
 })
 
 // ─── Auto Scan ────────────────────────────────────────────────────────────────
-function runAutoScan() {
+function runAutoScan(enabledLaunchers = null) {
   const settings = getSettingsData()
-  if (settings.auto_import === false) {
+  if (settings.auto_import === false && !enabledLaunchers) {
     console.log('[AUTO-SCAN] Auto-import is disabled in settings. Skipping background auto-scan.')
     return
   }
 
   console.log('[AUTO-SCAN] Starting background auto-scan...')
   const promises = []
-  if (settings.scan_steam !== false) promises.push(scanSteamLibrary())
-  if (settings.scan_gog !== false) promises.push(scanGogLibrary())
-  if (settings.scan_epic !== false) promises.push(scanEpicLibrary())
-  if (settings.scan_ea !== false) promises.push(scanEaLibrary())
-  if (settings.scan_ubisoft !== false) promises.push(scanUbisoftLibrary())
-  if (settings.scan_bnet !== false) promises.push(scanBattlenetLibrary())
+  
+  const steamEnabled = enabledLaunchers ? enabledLaunchers.steam : settings.scan_steam !== false
+  const gogEnabled = enabledLaunchers ? enabledLaunchers.gog : settings.scan_gog !== false
+  const epicEnabled = enabledLaunchers ? enabledLaunchers.epic : settings.scan_epic !== false
+  const eaEnabled = enabledLaunchers ? enabledLaunchers.ea : settings.scan_ea !== false
+  const ubisoftEnabled = enabledLaunchers ? enabledLaunchers.ubisoft : settings.scan_ubisoft !== false
+  const bnetEnabled = enabledLaunchers ? enabledLaunchers.bnet : settings.scan_bnet !== false
+  const xboxEnabled = enabledLaunchers ? enabledLaunchers.xbox : settings.scan_xbox !== false
+  const amazonEnabled = enabledLaunchers ? enabledLaunchers.amazon : settings.scan_amazon !== false
 
-  Promise.all(promises)
-    .then(() => {
+  if (steamEnabled) promises.push(scanSteamLibrary())
+  if (gogEnabled) promises.push(scanGogLibrary())
+  if (epicEnabled) promises.push(scanEpicLibrary())
+  if (eaEnabled) promises.push(scanEaLibrary())
+  if (ubisoftEnabled) promises.push(scanUbisoftLibrary())
+  if (bnetEnabled) promises.push(scanBattlenetLibrary())
+  if (xboxEnabled) promises.push(scanXboxLibrary())
+  if (amazonEnabled) promises.push(scanAmazonLibrary())
+
+  return Promise.all(promises)
+    .then((results) => {
       console.log('[AUTO-SCAN] Background auto-scan completed.')
+      
+      let importedCount = 0
+      let removedCount = 0
+      results.forEach(res => {
+        if (res) {
+          importedCount += res.imported || 0
+          removedCount += res.removed || 0
+        }
+      })
+      
       notifyRenderer()
       runBackgroundCoverDownloader(notifyRenderer, true).then(() => {
         runBackgroundCoverDownloader(notifyRenderer, false).catch(err => {
@@ -974,8 +996,13 @@ function runAutoScan() {
       }).catch(err => {
         console.error('[AUTO-SCAN] Background static cover downloader failed:', err.message)
       })
+      
+      return { success: true, importedCount, removedCount }
     })
-    .catch(e => console.error('[AUTO-SCAN] Error:', e))
+    .catch(e => {
+      console.error('[AUTO-SCAN] Error:', e)
+      return { success: false, error: e.message }
+    })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────

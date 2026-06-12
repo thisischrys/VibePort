@@ -304,7 +304,14 @@ function sortGames(games, sortBy) {
 
 // ─── GameCard ─────────────────────────────────────────────────────────────────
 
-const GameCard = React.memo(({ game, isHidden, hasFailedCover, cardFontSize, onLaunch, onEdit, onToggleHide, onDelete, onImageError, isOpen, setActiveMenuGameId }) => {
+const GameCard = React.memo(({ game, isHidden, hasFailedCover, cardFontSize, onLaunch, onEdit, onToggleHide, onDelete, onImageError, isOpen, setActiveMenuGameId, coverLaunchesGame }) => {
+  const hasCover = game.coverUrl && !hasFailedCover;
+  
+  // Hide game card until we have a cover OR we have finished all background checks (failed)
+  if (!hasCover && !game.last_animated_check) {
+    return null;
+  }
+
   return (
     <motion.div
       key={game.game_id}
@@ -317,7 +324,13 @@ const GameCard = React.memo(({ game, isHidden, hasFailedCover, cardFontSize, onL
         zIndex: isOpen ? 1600 : 1,
         ...(isHidden ? { opacity: 0.8 } : {})
       }}
-      onClick={(e) => onLaunch(game, e)}
+      onClick={(e) => {
+        if (coverLaunchesGame) {
+          onLaunch(game, e)
+        } else {
+          onEdit(game, e)
+        }
+      }}
     >
       <div className="cover-wrapper" style={{ ...styles.coverWrapper, display: 'flex', flexDirection: 'column', background: 'rgba(255, 255, 255, 0.04)' }}>
 
@@ -349,6 +362,37 @@ const GameCard = React.memo(({ game, isHidden, hasFailedCover, cardFontSize, onL
             }}
           >
             <MoreVertical size={16} color="#ffffff" />
+          </div>
+
+          {/* New Play/Edit Action Overlay Button */}
+          <div 
+            className="edit-overlay-btn" 
+            style={{
+              position: 'absolute',
+              top: '6px',
+              left: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              width: '34px',
+              height: '34px',
+              backgroundColor: 'rgba(15, 12, 28, 0.65)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
+              opacity: 0,
+              transform: 'scale(0.85)',
+            }} 
+            onClick={(e) => {
+              e.stopPropagation()
+              if (coverLaunchesGame) {
+                onEdit(game, e)
+              } else {
+                onLaunch(game, e)
+              }
+            }}
+          >
+            {coverLaunchesGame ? <Info size={16} color="#ffffff" /> : <Play size={16} color="#ffffff" />}
           </div>
 
         </div>
@@ -564,6 +608,21 @@ const App = () => {
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('vibeport_sort_by') || 'alphabetical')
   const [showHidden, setShowHidden] = useState(() => localStorage.getItem('vibeport_show_hidden') === 'true')
   const [showSidebar, setShowSidebar] = useState(() => localStorage.getItem('vibeport_show_sidebar') !== 'false')
+  const [coverLaunchesGame, setCoverLaunchesGame] = useState(() => localStorage.getItem('vibeport_cover_launches_game') !== 'false')
+
+  // Listen for storage changes from PreferencesModal
+  useEffect(() => {
+    const handleStorage = () => {
+      setCoverLaunchesGame(localStorage.getItem('vibeport_cover_launches_game') !== 'false')
+    }
+    window.addEventListener('storage', handleStorage)
+    // also override setInterval or simple refresh loop since storage event doesn't fire in same window usually
+    const iv = setInterval(handleStorage, 500)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      clearInterval(iv)
+    }
+  }, [])
 
   // ── Persistence ────────────────────────────────────────────────────────────
   useEffect(() => { localStorage.setItem('vibeport_sort_by', sortBy) }, [sortBy])
@@ -844,6 +903,7 @@ const App = () => {
     try {
       const data = await window.api.getGames()
       setGames(data.map(g => g.source === 'manual' ? { ...g, source: 'imported' } : g))
+      setFailedCovers({}) // Reset failed covers on fetch so new covers can attempt to load
     } catch (e) {
       console.error('Failed to fetch games:', e)
     } finally {
@@ -1004,7 +1064,9 @@ const App = () => {
       epic: localStorage.getItem('vibeport_scan_epic') !== 'false',
       ea: localStorage.getItem('vibeport_scan_ea') !== 'false',
       ubisoft: localStorage.getItem('vibeport_scan_ubisoft') !== 'false',
-      bnet: localStorage.getItem('vibeport_scan_bnet') !== 'false'
+      bnet: localStorage.getItem('vibeport_scan_bnet') !== 'false',
+      xbox: localStorage.getItem('vibeport_scan_xbox') !== 'false',
+      amazon: localStorage.getItem('vibeport_scan_amazon') !== 'false'
     }
 
     // Save current games list so user can undo this import using Ctrl + Z

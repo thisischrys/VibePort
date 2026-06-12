@@ -203,6 +203,15 @@ export async function downloadCoverForGame(gameData, notifyRenderer, preferStati
       console.error(`[BG-COVER] SteamGridDB static cover lookup failed for ${name}:`, e.message)
     }
 
+    if (!hasCover) {
+      console.log(`[BG-COVER] No static cover found on SteamGridDB. Trying CDN fallback for ${name}...`)
+      const cdnSuccess = await downloadFromCdn()
+      if (cdnSuccess) {
+        updateGameMetadata('static', undefined, Date.now())
+        return true
+      }
+    }
+
     // Negative caching: mark search as failed so we don't query again for a week
     updateGameMetadata(undefined, undefined, Date.now())
     return false
@@ -314,5 +323,6 @@ export async function runBackgroundCoverDownloader(notifyRenderer, preferStatic 
   } finally {
     isDownloadingCovers = false
     console.log(`[BG-COVER] Background cover downloader completed (preferStatic: ${preferStatic}).`)
+    if (notifyRenderer) notifyRenderer()
   }
 }

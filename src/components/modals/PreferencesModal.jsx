@@ -56,6 +56,9 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
   const [useWindowsAccent, setUseWindowsAccent] = useState(() => {
     return localStorage.getItem('vibeport_use_windows_accent') !== 'false'
   })
+  const [coverLaunchesGame, setCoverLaunchesGame] = useState(() => {
+    return localStorage.getItem('vibeport_cover_launches_game') !== 'false'
+  })
 
   // Behavior states under Import tab
   const [importAutomatically, setImportAutomatically] = useState(() => {
@@ -72,6 +75,8 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
   const [scanEa, setScanEa] = useState(() => localStorage.getItem('vibeport_scan_ea') !== 'false')
   const [scanUbisoft, setScanUbisoft] = useState(() => localStorage.getItem('vibeport_scan_ubisoft') !== 'false')
   const [scanBnet, setScanBnet] = useState(() => localStorage.getItem('vibeport_scan_bnet') !== 'false')
+  const [scanXbox, setScanXbox] = useState(() => localStorage.getItem('vibeport_scan_xbox') !== 'false')
+  const [scanAmazon, setScanAmazon] = useState(() => localStorage.getItem('vibeport_scan_amazon') !== 'false')
 
   const togglePreference = (key, currentVal, setter) => {
     const newVal = !currentVal
@@ -112,6 +117,14 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Exit After Launching Games</span>
             </div>
             <GtkSwitch active={exitAfterLaunch} onChange={() => togglePreference('vibeport_exit_after_launch', exitAfterLaunch, setExitAfterLaunch)} accentColor={accentHex} />
+          </div>
+          {/* Row 1.5: Cover Image Launches Game */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Cover Image Launches Game</span>
+              <span style={{ fontSize: '10.5px', color: '#8e8e93', fontWeight: '500' }}>Swaps the behavior of the cover image and the play button</span>
+            </div>
+            <GtkSwitch active={coverLaunchesGame} onChange={() => togglePreference('vibeport_cover_launches_game', coverLaunchesGame, setCoverLaunchesGame)} accentColor={accentHex} />
           </div>
           {/* Row 2: Use Windows Accent Color */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
@@ -211,12 +224,14 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
         </h4>
         <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
           {[
+            { label: 'Amazon Games', val: scanAmazon, setter: setScanAmazon, key: 'vibeport_scan_amazon', source: 'amazon' },
             { label: 'Battle.net', val: scanBnet, setter: setScanBnet, key: 'vibeport_scan_bnet', source: 'battlenet' },
             { label: 'EA App', val: scanEa, setter: setScanEa, key: 'vibeport_scan_ea', source: 'ea' },
             { label: 'Epic Games', val: scanEpic, setter: setScanEpic, key: 'vibeport_scan_epic', source: 'epic' },
             { label: 'GOG Galaxy', val: scanGog, setter: setScanGog, key: 'vibeport_scan_gog', source: 'gog' },
             { label: 'Steam', val: scanSteam, setter: setScanSteam, key: 'vibeport_scan_steam', source: 'steam' },
             { label: 'Ubisoft Connect', val: scanUbisoft, setter: setScanUbisoft, key: 'vibeport_scan_ubisoft', source: 'ubisoft' },
+            { label: 'Xbox App', val: scanXbox, setter: setScanXbox, key: 'vibeport_scan_xbox', source: 'xbox' },
           ].map((item, idx, arr) => (
             <div
               key={item.key}
@@ -267,7 +282,7 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
         transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
         style={{
           width: '640px',
-          height: '580px', // Spacious but perfectly constrained to prevent scrollbars
+          height: '640px', // Increased height to fit all launchers without scrolling
           background: 'var(--bg-mid, rgba(15, 12, 28, 0.95))',
           border: '1px solid var(--accent-border, rgba(139, 92, 246, 0.22))',
           borderRadius: '16px',
