@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { IPC_EVENTS } from '../../src/shared/ipc-events.js'
 import { BrowserWindow } from 'electron'
 import { gamesPath, coversDir, STEAMGRIDDB_API_KEY } from '../lib/paths.js'
 import { downloadCoverFromUrl } from './images.js'
@@ -16,14 +17,7 @@ async function throttledFetch(url, options) {
   return fetch(url, options)
 }
 
-function sendScanProgress(current, total, message) {
-  const windows = BrowserWindow.getAllWindows()
-  for (const win of windows) {
-    if (!win.isDestroyed()) {
-      win.webContents.send('scan-progress', { current, total, message })
-    }
-  }
-}
+import { scanManager } from './scanManager.js'
 
 function normalizeGameName(name) {
   if (!name) return ''
@@ -305,7 +299,7 @@ export async function runBackgroundCoverDownloader(notifyRenderer, preferStatic 
         const currentPercent = Math.round(10 + (90 * (i / totalFiles)))
         
         if (preferStatic) {
-          sendScanProgress(currentPercent, 100, `Synchronizing cover art for ${name}...`)
+          scanManager.sendProgress(currentPercent, 100, `Synchronizing cover art for ${name}...`)
         }
 
         await downloadCoverForGame(data, notifyRenderer, preferStatic)
@@ -315,7 +309,7 @@ export async function runBackgroundCoverDownloader(notifyRenderer, preferStatic 
     }
     
     if (preferStatic) {
-      sendScanProgress(100, 100, 'Cover art synchronization complete!')
+      scanManager.sendProgress(100, 100, 'Cover art synchronization complete!')
     }
   } finally {
     isDownloadingCovers = false

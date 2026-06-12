@@ -66,6 +66,8 @@ export const TitleBar = ({
   showHidden,
   setShowHidden,
   isScanning,
+  isCoverDownloading,
+  coverDownloadProgress,
   handleScanGamesFolder,
   openAddModal,
   sortBy,
@@ -129,12 +131,43 @@ export const TitleBar = ({
         }}
         onClick={(e) => {
           e.stopPropagation()
-          setShowPlusDropdown(!showPlusDropdown)
+          if (showMenu) {
+            setShowMenu(false)
+          } else {
+            setShowPlusDropdown(!showPlusDropdown)
+          }
         }}
         title="Add Options"
       >
         {isScanning ? (
           <Loader2 size={18} style={{ color: '#ffffff', animation: 'spin 1s linear infinite' }} />
+        ) : isCoverDownloading ? (
+          <svg width="18" height="18" viewBox="0 0 18 18" style={{ transform: 'rotate(-90deg)' }}>
+            <circle
+              cx="9"
+              cy="9"
+              r="7"
+              stroke="rgba(255, 255, 255, 0.15)"
+              strokeWidth="2"
+              fill="transparent"
+            />
+            <circle
+              cx="9"
+              cy="9"
+              r="7"
+              stroke="var(--accent, #ffffff)"
+              strokeWidth="2"
+              fill="transparent"
+              strokeDasharray={43.98}
+              strokeDashoffset={
+                coverDownloadProgress?.total > 0
+                  ? 43.98 * (1 - (coverDownloadProgress.current || 0) / coverDownloadProgress.total)
+                  : 43.98
+              }
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+            />
+          </svg>
         ) : (
           <Plus size={18} style={{ color: '#ffffff' }} />
         )}
@@ -214,7 +247,12 @@ export const TitleBar = ({
         }}
         onClick={(e) => {
           e.stopPropagation()
-          setShowSearch(!showSearch)
+          if (showPlusDropdown || showMenu) {
+            setShowPlusDropdown(false)
+            setShowMenu(false)
+          } else {
+            setShowSearch(!showSearch)
+          }
         }}
         title="Search Games"
       >
@@ -234,8 +272,12 @@ export const TitleBar = ({
           }}
           onClick={(e) => {
             e.stopPropagation()
-            setShowMenu(!showMenu)
-            setMenuPanel('main')
+            if (showPlusDropdown) {
+              setShowPlusDropdown(false)
+            } else {
+              setShowMenu(!showMenu)
+              setMenuPanel('main')
+            }
           }}
           title="Main Menu"
         >
@@ -484,6 +526,7 @@ export const TitleBar = ({
   return (
     <div style={{
       ...styles.titlebar,
+      WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag',
       backgroundColor: 'transparent',
       background: 'transparent',
       borderBottom: 'none',
@@ -511,7 +554,15 @@ export const TitleBar = ({
               <div
                 className="header-action"
                 style={styles.actionIconContainer}
-                onClick={() => setShowHidden(false)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (showPlusDropdown || showMenu) {
+                    setShowPlusDropdown(false)
+                    setShowMenu(false)
+                  } else {
+                    setShowHidden(false)
+                  }
+                }}
                 title="Back to Library"
               >
                 <ChevronLeft size={18} style={styles.actionIcon} />
@@ -520,7 +571,15 @@ export const TitleBar = ({
               <div
                 className="header-action"
                 style={styles.actionIconContainer}
-                onClick={() => setShowSidebar(false)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (showPlusDropdown || showMenu) {
+                    setShowPlusDropdown(false)
+                    setShowMenu(false)
+                  } else {
+                    setShowSidebar(false)
+                  }
+                }}
                 title="Hide Sidebar"
               >
                 <Sidebar size={18} style={styles.actionIcon} />
@@ -538,7 +597,7 @@ export const TitleBar = ({
               fontWeight: '700',
               color: '#f8fafc',
               letterSpacing: '-0.3px',
-              WebkitAppRegion: 'drag'
+              WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
             }}>
               VibePort
             </div>
@@ -573,7 +632,7 @@ export const TitleBar = ({
               fontWeight: '700',
               color: '#cbd5e1',
               letterSpacing: '-0.3px',
-              WebkitAppRegion: 'drag'
+              WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
             }}>
               {activeTitle}
             </div>
@@ -606,7 +665,15 @@ export const TitleBar = ({
               <div
                 className="header-action"
                 style={styles.actionIconContainer}
-                onClick={() => setShowHidden(false)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (showPlusDropdown || showMenu) {
+                    setShowPlusDropdown(false)
+                    setShowMenu(false)
+                  } else {
+                    setShowHidden(false)
+                  }
+                }}
                 title="Back to Library"
               >
                 <ChevronLeft size={18} style={styles.actionIcon} />
@@ -616,7 +683,15 @@ export const TitleBar = ({
                 <div
                   className="header-action"
                   style={styles.actionIconContainer}
-                  onClick={() => setShowSidebar(true)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (showPlusDropdown || showMenu) {
+                      setShowPlusDropdown(false)
+                      setShowMenu(false)
+                    } else {
+                      setShowSidebar(true)
+                    }
+                  }}
                   title="Show Sidebar"
                 >
                   <Sidebar size={18} style={styles.actionIcon} />
@@ -637,7 +712,7 @@ export const TitleBar = ({
             fontWeight: '700',
             color: '#cbd5e1',
             letterSpacing: '-0.3px',
-            WebkitAppRegion: 'drag'
+            WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
           }}>
             {activeTitle}
           </div>

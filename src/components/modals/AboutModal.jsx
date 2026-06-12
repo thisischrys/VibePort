@@ -86,7 +86,7 @@ const AboutModal = ({ accentHex, version, onClose }) => (
           border: '1px solid var(--accent-border)',
           display: 'inline-block'
         }}>
-          v{version}
+          {version}
         </div>
       </div>
 

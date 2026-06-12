@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
-import { X, Search, Home, Download } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Search, Home, Download, CheckCircle2, AlertCircle, Info } from 'lucide-react'
 import { LauncherIcon } from '../LauncherIcon.jsx'
 
 // Custom modern Adwaita-style toggle switch
@@ -35,8 +35,19 @@ const GtkSwitch = ({ active, onChange, accentColor }) => (
   </div>
 )
 
-export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggleWindowsAccent, onUpdateCovers }) => {
-  const [activeTab, setActiveTab] = useState('general') // 'general' | 'import'
+export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggleWindowsAccent, onUpdateCovers, onUndo, initialTab = 'general' }) => {
+  const [activeTab, setActiveTab] = useState(initialTab) // 'general' | 'import'
+  const [modalToast, setModalToast] = useState(null)
+
+  const triggerModalToast = (message, type = 'info', showUndo = false) => {
+    setModalToast({ message, type, showUndo })
+  }
+
+  React.useEffect(() => {
+    if (!modalToast) return
+    const t = setTimeout(() => setModalToast(null), 5000)
+    return () => clearTimeout(t)
+  }, [modalToast])
 
   // Preferences states loaded from / saved to localStorage
   const [exitAfterLaunch, setExitAfterLaunch] = useState(() => {
@@ -46,7 +57,7 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
     return localStorage.getItem('vibeport_use_windows_accent') !== 'false'
   })
 
-  // Behaviour states under Import tab
+  // Behavior states under Import tab
   const [importAutomatically, setImportAutomatically] = useState(() => {
     return localStorage.getItem('vibeport_auto_import') !== 'false'
   })
@@ -84,8 +95,7 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
   }
 
   const handleRemoveAllClick = () => {
-    onRemoveAllGames()
-    onClose()
+    onRemoveAllGames(triggerModalToast)
   }
 
   const renderGeneralTab = () => (
@@ -139,7 +149,7 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
                 color: '#ffffff',
                 transition: 'background-color 0.15s ease',
               }}
-              onClick={onUpdateCovers}
+              onClick={() => onUpdateCovers(triggerModalToast)}
             >
               Update
             </button>
@@ -175,10 +185,10 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
 
   const renderImportTab = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Behaviour Section */}
+      {/* Behavior Section */}
       <div>
         <h4 style={{ fontSize: '12px', fontWeight: '700', color: '#8e8e93', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
-          Behaviour
+          Behavior
         </h4>
         <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
           {/* Row 1: Import Automatically */}
@@ -360,6 +370,63 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
           {activeTab === 'general' && renderGeneralTab()}
           {activeTab === 'import' && renderImportTab()}
         </div>
+
+        {/* Modal Notification toast */}
+        <AnimatePresence>
+          {modalToast && (
+            <motion.div
+              initial={{ opacity: 0, y: 15, scale: 0.95, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+              exit={{ opacity: 0, y: 10, scale: 0.97, x: '-50%' }}
+              style={{
+                position: 'absolute',
+                bottom: '20px',
+                left: '50%',
+                backgroundColor: '#0f0e16',
+                border: modalToast.type === 'error' ? '1px solid rgba(248, 113, 113, 0.18)' : modalToast.type === 'success' ? '1px solid rgba(74, 222, 128, 0.18)' : '1px solid rgba(139, 92, 246, 0.22)',
+                boxShadow: '0 20px 30px -5px rgba(0,0,0,0.7), 0 0 30px rgba(139, 92, 246, 0.08)',
+                borderRadius: '12px',
+                padding: '12px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                zIndex: 100,
+                width: 'max-content',
+                maxWidth: '90%',
+              }}
+            >
+              {modalToast.type === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
+                : modalToast.type === 'error' ? <AlertCircle size={18} color="#f87171" />
+                : <Info size={18} color={`#${accentHex}`} />}
+              <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>{modalToast.message}</span>
+              {modalToast.showUndo && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUndo()
+                    setModalToast(null)
+                  }}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    color: '#f8fafc',
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    marginLeft: '6px',
+                    fontFamily: "'Outfit', sans-serif"
+                  }}
+                  className="glass-btn"
+                >
+                  Undo
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   )

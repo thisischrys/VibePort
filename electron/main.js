@@ -5,9 +5,25 @@ import fs from 'node:fs'
 import { spawn, exec } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// ─── Override userData path to use proper capitalization ──────────────────────
+// Electron derives userData from package.json "name" (lowercase "vibeport").
+// We force it to "VibePort" here, BEFORE paths.js reads app.getPath('userData').
+{
+  const currentUserData = app.getPath('userData')
+  const parentDir = path.dirname(currentUserData)
+  const correctedUserData = path.join(parentDir, 'VibePort')
+  if (currentUserData !== correctedUserData) {
+    app.setPath('userData', correctedUserData)
+  }
+}
+
 import { gamesPath, coversDir, settingsPath, vibeportDir, STEAMGRIDDB_API_KEY } from './lib/paths.js'
 import { getSettingsData, saveSettingsData } from './lib/settings.js'
-import { loadAllGames, writeGame, removeCoverFiles } from './lib/gameStore.js'
+import { loadAllGames, writeGame, removeCoverFiles, readGame, deleteGameFile, deleteAllGames, getAllGameIds } from './lib/gameStore.js'
+import { calculateDeleteAction, calculateUndoDeletions } from './lib/gameLogic.js'
 import { downloadCoverFromUrl } from './lib/images.js'
 import { runBackgroundCoverDownloader, downloadCoverForGame } from './lib/coverDownloader.js'
 import { scanSteamLibrary } from './scanners/steamScanner.js'
@@ -16,9 +32,7 @@ import { scanEpicLibrary } from './scanners/epicScanner.js'
 import { scanEaLibrary } from './scanners/eaScanner.js'
 import { scanUbisoftLibrary } from './scanners/ubisoftScanner.js'
 import { scanBattlenetLibrary } from './scanners/battlenetScanner.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+import { IPC_EVENTS } from '../src/shared/ipc-events.js'
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.vibeport.app')
@@ -41,9 +55,46 @@ let splashWindow = null
 let shortcutsWindow = null
 let lastAccentColor = null
 
+// ─── Active Scan Counter (tracks concurrent import + folder scan) ─────────────
+// Counts how many scan operations are currently running so the UI knows when
+// ALL have finished rather than clearing on the first to complete.
+import { scanManager } from './lib/scanManager.js'
+
 // ─── Renderer Notification Helper ────────────────────────────────────────────
 function notifyRenderer() {
-  if (mainWindow) mainWindow.webContents.send('games-updated')
+  if (mainWindow) mainWindow.webContents.send(IPC_EVENTS.GAMES_UPDATED)
+}
+
+// ─── Orphan Cover Cleanup Helper ──────────────────────────────────────────────
+function cleanOrphanCovers() {
+  try {
+    if (!fs.existsSync(coversDir) || !fs.existsSync(gamesPath)) return
+    
+    // 1. Gather all game IDs that exist in the database (i.e. have JSON files)
+    const activeGameIds = new Set()
+    const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+    for (const file of files) {
+      activeGameIds.add(file.replace('.json', ''))
+    }
+    
+    // 2. Scan covers directory and remove files whose gameId is not in activeGameIds
+    const coverFiles = fs.readdirSync(coversDir)
+    const processedIds = new Set()
+    
+    for (const file of coverFiles) {
+      const dotIdx = file.indexOf('.')
+      if (dotIdx > 0) {
+        const gameId = file.substring(0, dotIdx)
+        if (!activeGameIds.has(gameId) && !processedIds.has(gameId)) {
+          processedIds.add(gameId)
+          console.log(`[CLEANUP] Removing orphan cover files for game ID: ${gameId}`)
+          removeCoverFiles(gameId)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[CLEANUP] Error during orphan cover cleanup:', err.message)
+  }
 }
 
 // ─── Window Creation ──────────────────────────────────────────────────────────
@@ -73,10 +124,10 @@ function createWindow() {
 
   // Window state event listeners to push state to React
   mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('window-state-changed', true)
+    mainWindow.webContents.send(IPC_EVENTS.WINDOW_STATE_CHANGED, true)
   })
   mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('window-state-changed', false)
+    mainWindow.webContents.send(IPC_EVENTS.WINDOW_STATE_CHANGED, false)
   })
 
   mainWindow.on('closed', () => { mainWindow = null })
@@ -121,7 +172,7 @@ function createShortcutsWindow() {
   if (mainWindow) {
     mainWindow.setMovable(false)
     mainWindow.setResizable(false)
-    mainWindow.webContents.send('shortcuts-window-status', true)
+    mainWindow.webContents.send(IPC_EVENTS.SHORTCUTS_WINDOW_STATUS, true)
   }
 
   shortcutsWindow.once('ready-to-show', () => {
@@ -134,7 +185,7 @@ function createShortcutsWindow() {
     if (mainWindow) {
       mainWindow.setMovable(true)
       mainWindow.setResizable(true)
-      mainWindow.webContents.send('shortcuts-window-status', false)
+      mainWindow.webContents.send(IPC_EVENTS.SHORTCUTS_WINDOW_STATUS, false)
       mainWindow.focus()
     }
   })
@@ -164,7 +215,7 @@ function createSplashWindow() {
   splashWindow.loadFile(splashPath)
 
   splashWindow.webContents.on('did-finish-load', () => {
-    splashWindow.webContents.send('set-accent-color', accentColor)
+    splashWindow.webContents.send(IPC_EVENTS.SET_ACCENT_COLOR, accentColor)
   })
 
   splashWindow.on('closed', () => {
@@ -183,9 +234,9 @@ function launchApp() {
 }
 
 // ─── IPC: Games ───────────────────────────────────────────────────────────────
-ipcMain.handle('get-games', () => loadAllGames())
+ipcMain.handle(IPC_EVENTS.GET_GAMES, () => loadAllGames())
 
-ipcMain.handle('save-game', async (event, gameData) => {
+ipcMain.handle(IPC_EVENTS.SAVE_GAME, async (event, gameData) => {
   try {
     let gameId = gameData.game_id
     let existingData = {}
@@ -229,19 +280,17 @@ ipcMain.handle('save-game', async (event, gameData) => {
   }
 })
 
-ipcMain.handle('delete-game', async (event, gameId) => {
+ipcMain.handle(IPC_EVENTS.DELETE_GAME, async (event, gameId) => {
   try {
-    const gameFilePath = path.join(gamesPath, `${gameId}.json`)
-    if (!fs.existsSync(gameFilePath)) return false
+    const data = readGame(gameId)
+    if (!data) return false
 
-    const data = JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
-
-    if (data.source === 'steam' || data.source === 'gog' || gameId.startsWith('steam_') || gameId.startsWith('gog_')) {
-      // Prevent the auto-scanner from re-adding it on next launch
-      writeGame(gameId, { ...data, removed: true })
-    } else {
-      fs.unlinkSync(gameFilePath)
-      removeCoverFiles(gameId)
+    const result = calculateDeleteAction(data, gameId)
+    
+    if (result.action === 'mark_removed') {
+      writeGame(gameId, result.game)
+    } else if (result.action === 'delete_file') {
+      deleteGameFile(gameId)
     }
 
     notifyRenderer()
@@ -252,7 +301,7 @@ ipcMain.handle('delete-game', async (event, gameId) => {
   }
 })
 
-ipcMain.handle('update-game-status', async (event, gameId, status) => {
+ipcMain.handle(IPC_EVENTS.UPDATE_GAME_STATUS, async (event, gameId, status) => {
   try {
     const gameFilePath = path.join(gamesPath, `${gameId}.json`)
     if (!fs.existsSync(gameFilePath)) return false
@@ -268,7 +317,7 @@ ipcMain.handle('update-game-status', async (event, gameId, status) => {
 })
 
 // ─── IPC: Game Launch ─────────────────────────────────────────────────────────
-ipcMain.handle('launch-game', async (event, executable) => {
+ipcMain.handle(IPC_EVENTS.LAUNCH_GAME, async (event, executable) => {
   console.log('Launching game:', executable)
   return new Promise((resolve, reject) => {
     try {
@@ -340,9 +389,9 @@ ipcMain.handle('launch-game', async (event, executable) => {
 })
 
 // ─── IPC: Settings ────────────────────────────────────────────────────────────
-ipcMain.handle('get-settings', () => getSettingsData())
+ipcMain.handle(IPC_EVENTS.GET_SETTINGS, () => getSettingsData())
 
-ipcMain.handle('save-settings', async (event, newSettings) => {
+ipcMain.handle(IPC_EVENTS.SAVE_SETTINGS, async (event, newSettings) => {
   try {
     return saveSettingsData(newSettings)
   } catch (e) {
@@ -352,12 +401,12 @@ ipcMain.handle('save-settings', async (event, newSettings) => {
 })
 
 // ─── IPC: Window Controls ─────────────────────────────────────────────────────
-ipcMain.on('window-minimize', (event) => {
+ipcMain.on(IPC_EVENTS.WINDOW_MINIMIZE, (event) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   if (win) win.minimize()
 })
 
-ipcMain.on('window-maximize', (event) => {
+ipcMain.on(IPC_EVENTS.WINDOW_MAXIMIZE, (event) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   if (win) {
     if (win.isMaximized()) {
@@ -368,22 +417,22 @@ ipcMain.on('window-maximize', (event) => {
   }
 })
 
-ipcMain.on('window-close', (event) => {
+ipcMain.on(IPC_EVENTS.WINDOW_CLOSE, (event) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   if (win) win.close()
 })
 
-ipcMain.handle('window-is-maximized', (event) => {
+ipcMain.handle(IPC_EVENTS.WINDOW_IS_MAXIMIZED, (event) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   return win ? win.isMaximized() : false
 })
 
-ipcMain.handle('open-shortcuts-window', () => {
+ipcMain.handle(IPC_EVENTS.OPEN_SHORTCUTS_WINDOW, () => {
   createShortcutsWindow()
 })
 
 // ─── IPC: System ─────────────────────────────────────────────────────────────
-ipcMain.handle('get-accent-color', () => {
+ipcMain.handle(IPC_EVENTS.GET_ACCENT_COLOR, () => {
   try {
     if (process.platform === 'win32' && systemPreferences.getAccentColor) {
       const raw = systemPreferences.getAccentColor()
@@ -396,7 +445,7 @@ ipcMain.handle('get-accent-color', () => {
   }
 })
 
-ipcMain.on('get-accent-color-sync', (event) => {
+ipcMain.on(IPC_EVENTS.GET_ACCENT_COLOR_SYNC, (event) => {
   try {
     if (process.platform === 'win32' && systemPreferences.getAccentColor) {
       const raw = systemPreferences.getAccentColor()
@@ -410,7 +459,7 @@ ipcMain.on('get-accent-color-sync', (event) => {
   }
 })
 
-ipcMain.handle('select-folder', async () => {
+ipcMain.handle(IPC_EVENTS.SELECT_FOLDER, async () => {
   try {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
@@ -423,7 +472,7 @@ ipcMain.handle('select-folder', async () => {
   }
 })
 
-ipcMain.handle('select-file', async () => {
+ipcMain.handle(IPC_EVENTS.SELECT_FILE, async () => {
   try {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
@@ -439,7 +488,7 @@ ipcMain.handle('select-file', async () => {
   }
 })
 
-ipcMain.handle('select-image', async () => {
+ipcMain.handle(IPC_EVENTS.SELECT_IMAGE, async () => {
   try {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
@@ -456,9 +505,14 @@ ipcMain.handle('select-image', async () => {
 })
 
 // ─── IPC: Folder Scanner (manual) ────────────────────────────────────────────
-ipcMain.handle('scan-folder', async (event, folderPath) => {
+ipcMain.handle(IPC_EVENTS.SCAN_FOLDER, async (event, folderPath) => {
+  scanManager.startScan()
+  scanManager.sendProgress(0, 100, 'Scanning folder for games...', 'folder')
   try {
+
     if (!folderPath || !fs.existsSync(folderPath)) {
+      scanManager.endScan()
+      scanManager.sendProgress(0, 100, '', 'folder')
       return { success: false, error: 'Invalid folder path' }
     }
 
@@ -622,18 +676,12 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
     if (addedCount > 0) {
       notifyRenderer()
       
-      const sendProgress = (current, total, message) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('scan-progress', { current, total, message })
-        }
-      }
-
-      sendProgress(10, 100, 'Scanning complete. Fetching static cover art...')
+      scanManager.sendProgress(10, 100, 'Scanning complete. Fetching static cover art...', 'folder')
 
       for (let i = 0; i < addedGames.length; i++) {
         const game = addedGames[i]
         const percent = Math.round(10 + (80 * (i / addedGames.length)))
-        sendProgress(percent, 100, `Downloading cover art for ${game.name}...`)
+        scanManager.sendProgress(percent, 100, `Downloading cover art for ${game.name}...`, 'folder')
         try {
           await downloadCoverForGame(game, notifyRenderer, true)
         } catch (err) {
@@ -641,10 +689,10 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
         }
       }
 
-      sendProgress(100, 100, 'Scan complete!');
+      scanManager.sendProgress(100, 100, 'Scan complete!', 'folder')
 
       // Kick off animated cover upgrades in the background (non-blocking)
-      (async () => {
+      ;(async () => {
         for (const game of addedGames) {
           try {
             await downloadCoverForGame(game, notifyRenderer, false)
@@ -654,15 +702,19 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
         }
       })()
     }
+    scanManager.endScan()
+    scanManager.sendProgress(100, 100, 'Done', 'folder')
     return { success: true, count: addedCount }
   } catch (e) {
     console.error('scan-folder error:', e)
+    scanManager.endScan()
+    scanManager.sendProgress(0, 100, '', 'folder')
     return { success: false, error: e.message }
   }
 })
 
 // ─── IPC: SteamGridDB ─────────────────────────────────────────────────────────
-ipcMain.handle('search-steamgriddb', async (event, query) => {
+ipcMain.handle(IPC_EVENTS.SEARCH_STEAMGRIDDB, async (event, query) => {
   try {
     const res = await fetch(
       `https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(query)}`,
@@ -677,7 +729,7 @@ ipcMain.handle('search-steamgriddb', async (event, query) => {
   }
 })
 
-ipcMain.handle('fetch-steamgriddb-covers', async (event, gameId) => {
+ipcMain.handle(IPC_EVENTS.FETCH_STEAMGRIDDB_COVERS, async (event, gameId) => {
   try {
     const [animRes, statRes] = await Promise.all([
       fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?types=animated`, { headers: { Authorization: `Bearer ${STEAMGRIDDB_API_KEY}` } }).catch(() => null),
@@ -721,7 +773,7 @@ ipcMain.handle('fetch-steamgriddb-covers', async (event, gameId) => {
   }
 })
 
-ipcMain.handle('download-cover-url', async (event, gameId, imageUrl) => {
+ipcMain.handle(IPC_EVENTS.DOWNLOAD_COVER_URL, async (event, gameId, imageUrl) => {
   if (!imageUrl) {
     removeCoverFiles(gameId)
     notifyRenderer()
@@ -746,68 +798,97 @@ ipcMain.handle('download-cover-url', async (event, gameId, imageUrl) => {
   return result
 })
 
-ipcMain.handle('run-auto-scan', async (event, enabledLaunchers) => {
+ipcMain.handle(IPC_EVENTS.RUN_AUTO_SCAN, async (event, enabledLaunchers) => {
+  scanManager.startScan()
+  scanManager.sendProgress(0, 100, 'Initializing game library scan...', 'import')
   try {
+
     console.log('[AUTO-SCAN] Rerunning scan for enabled launchers:', enabledLaunchers)
-    
-    const sendProgress = (current, total, message) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('scan-progress', { current, total, message })
+
+    // 1. Gather pre-scan game IDs directly from files on disk
+    const preScanIds = new Set()
+    if (fs.existsSync(gamesPath)) {
+      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+      for (const file of files) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
+          if (!data.removed && !data.blacklisted) {
+            preScanIds.add(data.game_id)
+          }
+        } catch {}
       }
     }
     
-    sendProgress(0, 100, 'Initializing game library scan...')
-    
     const promises = []
     if (enabledLaunchers.steam) {
-      sendProgress(2, 100, 'Scanning Steam registry & libraries...')
+      scanManager.sendProgress(2, 100, 'Scanning Steam registry & libraries...', 'import')
       promises.push(scanSteamLibrary())
     }
     if (enabledLaunchers.gog) {
-      sendProgress(4, 100, 'Scanning GOG registry & libraries...')
+      scanManager.sendProgress(4, 100, 'Scanning GOG registry & libraries...', 'import')
       promises.push(scanGogLibrary())
     }
     if (enabledLaunchers.epic) {
-      sendProgress(5, 100, 'Scanning Epic Games launcher...')
+      scanManager.sendProgress(5, 100, 'Scanning Epic Games launcher...', 'import')
       promises.push(scanEpicLibrary())
     }
     if (enabledLaunchers.ea) {
-      sendProgress(6, 100, 'Scanning EA Desktop launcher...')
+      scanManager.sendProgress(6, 100, 'Scanning EA Desktop launcher...', 'import')
       promises.push(scanEaLibrary())
     }
     if (enabledLaunchers.ubisoft) {
-      sendProgress(8, 100, 'Scanning Ubisoft Connect launcher...')
+      scanManager.sendProgress(8, 100, 'Scanning Ubisoft Connect launcher...', 'import')
       promises.push(scanUbisoftLibrary())
     }
     if (enabledLaunchers.bnet) {
-      sendProgress(9, 100, 'Scanning Battle.net launcher...')
+      scanManager.sendProgress(9, 100, 'Scanning Battle.net launcher...', 'import')
       promises.push(scanBattlenetLibrary())
     }
     
     await Promise.all(promises)
     console.log('[AUTO-SCAN] Scan rerun complete.')
     notifyRenderer()
+
+    // 2. Gather post-scan game IDs directly from files on disk
+    const postScanIds = new Set()
+    if (fs.existsSync(gamesPath)) {
+      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+      for (const file of files) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
+          if (!data.removed && !data.blacklisted) {
+            postScanIds.add(data.game_id)
+          }
+        } catch {}
+      }
+    }
+
+    const importedCount = [...postScanIds].filter(id => !preScanIds.has(id)).length
+    const removedCount = [...preScanIds].filter(id => !postScanIds.has(id)).length
     
-    sendProgress(10, 100, 'Registry scan complete. Fetching static cover art...')
+    scanManager.sendProgress(10, 100, 'Registry scan complete. Fetching static cover art...', 'import')
     
     await runBackgroundCoverDownloader(notifyRenderer, true).catch(err => {
       console.error('[BG-COVER] Scan rerun static cover downloader failed:', err.message)
     })
     
-    sendProgress(100, 100, 'Scan complete!')
+    scanManager.endScan()
+    scanManager.sendProgress(100, 100, 'Scan complete!', 'import')
 
-    // Kick off animated cover upgrades in the background
+    // Kick off animated cover upgrades in the background (non-blocking)
     runBackgroundCoverDownloader(notifyRenderer, false).catch(err => {
       console.error('[BG-COVER] Scan rerun animated cover downloader failed:', err.message)
     })
-    return { success: true }
+    return { success: true, importedCount, removedCount }
   } catch (e) {
     console.error('run-auto-scan error:', e)
+    scanManager.endScan()
+    scanManager.sendProgress(0, 100, '', 'import')
     return { success: false, error: e.message }
   }
 })
 
-ipcMain.handle('update-all-covers', async () => {
+ipcMain.handle(IPC_EVENTS.UPDATE_ALL_COVERS, async () => {
   try {
     console.log('[BG-COVER] Triggering covers update for library...')
     runBackgroundCoverDownloader(notifyRenderer, true).then(() => {
@@ -824,25 +905,43 @@ ipcMain.handle('update-all-covers', async () => {
   }
 })
 
-ipcMain.handle('remove-all-games', async () => {
+ipcMain.handle(IPC_EVENTS.REMOVE_ALL_GAMES, async () => {
   try {
     console.log('[DANGER] Wiping all games from database completely...')
-    if (fs.existsSync(gamesPath)) {
-      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
-      for (const file of files) {
-        const gameId = file.replace('.json', '')
-        try {
-          fs.unlinkSync(path.join(gamesPath, file))
-          removeCoverFiles(gameId)
-        } catch (err) {
-          console.error(`[DANGER] Failed to delete ${file}:`, err.message)
-        }
-      }
-    }
+    deleteAllGames()
     notifyRenderer()
     return true
   } catch (e) {
     console.error('remove-all-games error:', e)
+    return false
+  }
+})
+
+ipcMain.handle(IPC_EVENTS.UNDO_IMPORT, async (event, gamesToRestore) => {
+  try {
+    console.log('[UNDO] Undoing library scan / folder import...')
+    const existingIds = getAllGameIds()
+    const toDelete = calculateUndoDeletions(existingIds, gamesToRestore)
+    
+    for (const gameId of toDelete) {
+      console.log(`[UNDO] Deleting newly added game during undo: ${gameId}`)
+      deleteGameFile(gameId)
+    }
+
+
+    for (const game of gamesToRestore) {
+      const { coverUrl, ...cleanGame } = game
+      try {
+        writeGame(game.game_id, cleanGame)
+      } catch (err) {
+        console.error(`[UNDO] Failed to restore game ${game.game_id}:`, err.message)
+      }
+    }
+    
+    notifyRenderer()
+    return true
+  } catch (e) {
+    console.error('undo-import error:', e)
     return false
   }
 })
@@ -882,6 +981,9 @@ function runAutoScan() {
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   if (!gotTheLock) return
+
+  // Clean up any orphan cover files at startup
+
 
   // Register media:// protocol for serving local cover images
   protocol.handle('media', async (request) => {
@@ -926,8 +1028,8 @@ app.whenReady().then(() => {
   if (process.platform === 'win32' && systemPreferences.on) {
     systemPreferences.on('accent-color-changed', (event, newColor) => {
       lastAccentColor = newColor
-      if (mainWindow) mainWindow.webContents.send('accent-color-changed', newColor)
-      if (splashWindow) splashWindow.webContents.send('set-accent-color', newColor)
+      if (mainWindow) mainWindow.webContents.send(IPC_EVENTS.ACCENT_COLOR_CHANGED, newColor)
+      if (splashWindow) splashWindow.webContents.send(IPC_EVENTS.SET_ACCENT_COLOR, newColor)
     })
   }
 
@@ -952,7 +1054,7 @@ app.whenReady().then(() => {
     // Update splash status
     setTimeout(() => {
       if (splashWindow) {
-        splashWindow.webContents.send('update-status', `Update v${info.version} available! Downloading...`)
+        splashWindow.webContents.send(IPC_EVENTS.UPDATE_STATUS, `Update v${info.version} available! Downloading...`)
       }
     }, 500)
   })
@@ -966,15 +1068,15 @@ app.whenReady().then(() => {
   autoUpdater.on('download-progress', (progressObj) => {
     if (splashWindow) {
       const percent = progressObj.percent || 0
-      splashWindow.webContents.send('update-progress', percent)
-      splashWindow.webContents.send('update-status', `Downloading update: ${Math.round(percent)}%`)
+      splashWindow.webContents.send(IPC_EVENTS.UPDATE_PROGRESS, percent)
+      splashWindow.webContents.send(IPC_EVENTS.UPDATE_STATUS, `Downloading update: ${Math.round(percent)}%`)
     }
   })
 
   autoUpdater.on('update-downloaded', (info) => {
     if (splashWindow) {
-      splashWindow.webContents.send('update-progress', 100)
-      splashWindow.webContents.send('update-status', 'Update downloaded! Restarting...')
+      splashWindow.webContents.send(IPC_EVENTS.UPDATE_PROGRESS, 100)
+      splashWindow.webContents.send(IPC_EVENTS.UPDATE_STATUS, 'Update downloaded! Restarting...')
     }
     setTimeout(() => {
       autoUpdater.quitAndInstall(true, true)
@@ -1009,6 +1111,11 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+app.on('quit', () => {
+  console.log('Cleaning orphan covers on quit...');
+  cleanOrphanCovers();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

@@ -292,7 +292,6 @@ export async function scanBattlenetLibrary() {
           console.log(`[AUTO-SCAN] Battle.net game ${gameId} uninstalled. Removing...`)
           try {
             fs.unlinkSync(path.join(gamesPath, dbFile))
-            removeCoverFiles(gameId)
           } catch (e) {
             console.error(`[AUTO-SCAN] Failed to remove ${gameId}:`, e.message)
           }

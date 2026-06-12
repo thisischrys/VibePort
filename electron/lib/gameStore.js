@@ -161,3 +161,36 @@ export function removeCoverFiles(gameId) {
     }
   }
 }
+
+// ─── IO Helpers for Decoupling ────────────────────────────────────────────────
+export function readGame(gameId) {
+  const gameFilePath = path.join(gamesPath, `${gameId}.json`)
+  if (!fs.existsSync(gameFilePath)) return null
+  try {
+    return JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
+  } catch (e) {
+    return null
+  }
+}
+
+export function deleteGameFile(gameId) {
+  const gameFilePath = path.join(gamesPath, `${gameId}.json`)
+  if (fs.existsSync(gameFilePath)) {
+    try { fs.unlinkSync(gameFilePath) } catch (e) { /* ignore */ }
+  }
+}
+
+export function getAllGameIds() {
+  if (!fs.existsSync(gamesPath)) return []
+  return fs.readdirSync(gamesPath)
+    .filter(f => f.endsWith('.json'))
+    .map(f => f.replace('.json', ''))
+}
+
+export function deleteAllGames() {
+  if (!fs.existsSync(gamesPath)) return
+  const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+  for (const file of files) {
+    try { fs.unlinkSync(path.join(gamesPath, file)) } catch (e) { /* ignore */ }
+  }
+}

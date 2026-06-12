@@ -575,7 +575,7 @@ export const styles = {
   },
   toast: {
     position: 'absolute',
-    top: '20px',
+    bottom: '20px',
     left: '50%',
     backgroundColor: '#0f0e16',
     border: '1px solid rgba(139, 92, 246, 0.22)',

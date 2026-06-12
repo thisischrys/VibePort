@@ -526,14 +526,24 @@ const App = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAboutModal, setShowAboutModal] = useState(false)
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
+  const [preferencesInitialTab, setPreferencesInitialTab] = useState('general')
+
+  const openPreferences = (tab = 'general') => {
+    setPreferencesInitialTab(tab)
+    setShowPreferencesModal(true)
+  }
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [isStandaloneShortcutsOpen, setIsStandaloneShortcutsOpen] = useState(false)
   const lastDeletedGameRef = React.useRef(null)
   const lastDeletedGamesListRef = React.useRef(null)
   const lastImportedGamesListRef = React.useRef(null)
+  const lastToggledHideGameRef = React.useRef(null)
 
 
   const [isScanning, setIsScanning] = useState(false)
+  const [scanMode, setScanMode] = useState('import') // 'import' | 'folder'
+  const [isCoverDownloading, setIsCoverDownloading] = useState(false)
+  const [coverDownloadProgress, setCoverDownloadProgress] = useState({ current: 0, total: 0 })
   const [scanProgress, setScanProgress] = useState({ current: 0, total: 100, message: '' })
 
   const [editingGame, setEditingGame] = useState(null)
@@ -561,7 +571,15 @@ const App = () => {
   useEffect(() => { localStorage.setItem('vibeport_show_sidebar', showSidebar) }, [showSidebar])
 
   // ── Toast ──────────────────────────────────────────────────────────────────
-  const triggerToast = (message, type = 'info', showUndo = false) => setActiveToast({ message, type, showUndo })
+  const triggerToast = (message, type = 'info', buttonOptions = null) => {
+    let btn = null
+    if (buttonOptions === true) {
+      btn = { label: 'Undo', onClick: handleUndo }
+    } else if (buttonOptions && typeof buttonOptions === 'object') {
+      btn = { label: buttonOptions.label, onClick: buttonOptions.onClick }
+    }
+    setActiveToast({ message, type, button: btn })
+  }
 
   const handleUndo = () => {
     if (lastImportedGamesListRef.current) {
@@ -573,30 +591,13 @@ const App = () => {
 
       triggerToast('Undoing library import...', 'info')
       
-      window.api.removeAllGames().then(res => {
-        if (!res) {
-          triggerToast('Failed to clear imported library.', 'error')
-          return
-        }
-        
-        if (gamesToRestore.length === 0) {
+      window.api.undoImport(gamesToRestore).then(success => {
+        if (success) {
           triggerToast('Library import undone successfully!', 'success')
           fetchGames()
-          return
+        } else {
+          triggerToast('Failed to undo library import.', 'error')
         }
-        
-        const promises = gamesToRestore.map(game => {
-          const { coverUrl, ...cleanGame } = game
-          return window.api.saveGame(cleanGame)
-        })
-        
-        Promise.all(promises).then(results => {
-          triggerToast('Library import undone successfully!', 'success')
-          fetchGames()
-        }).catch(err => {
-          console.error(err)
-          triggerToast('Failed to restore games after undo', 'error')
-        })
       }).catch(err => {
         console.error(err)
         triggerToast('Failed to undo import', 'error')
@@ -639,6 +640,22 @@ const App = () => {
           triggerToast('Failed to restore game', 'error')
         }
       }).catch(console.error)
+    } else if (lastToggledHideGameRef.current) {
+      const { game_id, wasHidden } = lastToggledHideGameRef.current
+      // Clear all refs immediately
+      lastImportedGamesListRef.current = null
+      lastDeletedGamesListRef.current = null
+      lastDeletedGameRef.current = null
+      lastToggledHideGameRef.current = null
+
+      triggerToast(wasHidden ? 'Hiding game...' : 'Unhiding game...', 'info')
+      window.api.updateGameStatus(game_id, { hidden: wasHidden }).then(res => {
+        triggerToast(wasHidden ? 'Game hidden' : 'Game unhidden', 'success')
+        fetchGames()
+      }).catch(err => {
+        console.error(err)
+        triggerToast('Failed to undo visibility change', 'error')
+      })
     } else {
       triggerToast('Nothing to undo!', 'info')
     }
@@ -861,6 +878,20 @@ const App = () => {
     if (window.api.onScanProgress) {
       subs.push(window.api.onScanProgress((progress) => {
         setScanProgress(progress)
+        // Use the 'active' flag sent from the backend (based on activeScanCount)
+        // to know when ALL concurrent operations are truly done.
+        if (progress.active !== undefined) {
+          setIsScanning(progress.active)
+        }
+        if (progress.mode) {
+          setScanMode(progress.mode)
+        }
+      }))
+    }
+    if (window.api.onCoverDownloadStatus) {
+      subs.push(window.api.onCoverDownloadStatus((status) => {
+        setIsCoverDownloading(status.active)
+        setCoverDownloadProgress(status)
       }))
     }
     return () => subs.forEach(fn => fn())
@@ -890,14 +921,13 @@ const App = () => {
     }
   }, [activeMenuGameId])
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleLaunch = useCallback(async (game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
     if (launchingGame) return
-    setLaunchingGame(game.name); setLaunchStatus(null)
+    setLaunchingGame(game.name)
     try {
       await window.api.launchGame(game.executable)
-      setLaunchStatus('success')
+      triggerToast(`${game.name} launched`, 'success')
       try { await window.api.updateGameStatus(game.game_id, { last_played: Math.floor(Date.now() / 1000) }) } catch { /* non-fatal */ }
       
       if (localStorage.getItem('vibeport_exit_after_launch') === 'true') {
@@ -906,31 +936,38 @@ const App = () => {
         }, 1200)
       }
 
-      setTimeout(() => { setLaunchingGame(null); setLaunchStatus(null) }, 4000)
+      setLaunchingGame(null)
     } catch (err) {
       console.error('Failed to launch game:', err)
-      setLaunchStatus('error')
-      setTimeout(() => { setLaunchingGame(null); setLaunchStatus(null) }, 5000)
+      triggerToast(`Failed to launch ${game.name}`, 'error')
+      setLaunchingGame(null)
     }
   }, [launchingGame])
 
   const handleToggleHideGame = useCallback(async (game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
     try {
+      // Clear other undo caches to keep state clean, set this one
+      lastImportedGamesListRef.current = null
+      lastDeletedGamesListRef.current = null
+      lastDeletedGameRef.current = null
+      lastToggledHideGameRef.current = { game_id: game.game_id, wasHidden: game.hidden }
+
       await window.api.updateGameStatus(game.game_id, { hidden: !game.hidden })
+      triggerToast(game.hidden ? `"${game.name}" unhidden.` : `"${game.name}" hidden.`, 'info', true)
       await fetchGames()
     } catch (e) { console.error('Failed to toggle hide:', e) }
   }, [fetchGames])
 
   const handleDeleteGame = useCallback(async (game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
-    if (!confirm(`Are you sure you want to remove "${game.name}" from VibePort?`)) return
     try {
       lastImportedGamesListRef.current = null // Clear import cache!
       lastDeletedGamesListRef.current = null // Clear bulk delete cache
       lastDeletedGameRef.current = game      // Set this cache exclusively
+      lastToggledHideGameRef.current = null
       await window.api.deleteGame(game.game_id)
-      triggerToast(`Removed "${game.name}".`, 'info', true)
+      triggerToast(`${game.name} removed`, 'info', true)
       await fetchGames()
     } catch (e) { console.error('Failed to delete game:', e) }
   }, [fetchGames])
@@ -939,20 +976,22 @@ const App = () => {
     setFailedCovers(p => ({ ...p, [id]: true }))
   }, [])
 
-  const handleRemoveAllGames = async () => {
+  const handleRemoveAllGames = async (customTriggerToast) => {
+    const toast = typeof customTriggerToast === 'function' ? customTriggerToast : triggerToast
     try {
       // Back up all current games before wiping
       lastImportedGamesListRef.current = null      // Clear import cache!
       lastDeletedGamesListRef.current = [...games] // Set this cache exclusively
       lastDeletedGameRef.current = null            // Clear single game delete cache
+      lastToggledHideGameRef.current = null
       
-      triggerToast('Removing all games...', 'info')
+      toast('Removing all games...', 'info')
       await window.api.removeAllGames()
-      triggerToast('All games removed.', 'success', true)
+      toast('All games removed.', 'success', true)
       await fetchGames()
     } catch (e) {
       console.error('Failed to remove all games:', e)
-      triggerToast('Failed to remove some games.', 'error')
+      toast('Failed to remove some games.', 'error')
     }
   }
 
@@ -972,15 +1011,44 @@ const App = () => {
     lastImportedGamesListRef.current = [...games]
     lastDeletedGamesListRef.current = null
     lastDeletedGameRef.current = null
+    lastToggledHideGameRef.current = null
 
-    triggerToast('Rerunning scanners for enabled launchers...', 'info')
+    // Reset progress bar state at the start of library scans
+    setScanProgress({ current: 0, total: 100, message: '' })
+    setScanMode('import')
     setIsScanning(true)
     try {
       const res = await window.api.runAutoScan(enabledLaunchers)
+      // isScanning will be cleared by the scan-progress 'active' flag from the backend
+      // but we force-clear as a safety net after the IPC promise resolves
       setIsScanning(false)
+      await new Promise(resolve => setTimeout(resolve, 350))
       if (res.success) {
-        triggerToast('Library import complete!', 'success', true)
-        await fetchGames()
+        // Fetch updated games list
+        const data = await window.api.getGames()
+        const updatedGames = data.map(g => g.source === 'manual' ? { ...g, source: 'imported' } : g)
+        setGames(updatedGames)
+
+        // Count new and removed games
+        const importedCount = res.importedCount ?? 0
+        const removedCount = res.removedCount ?? 0
+
+        if (importedCount === 0 && removedCount === 0) {
+          triggerToast('No new games found', 'info', {
+            label: 'Preferences',
+            onClick: () => openPreferences('import')
+          })
+        } else {
+          let msg = ''
+          if (importedCount > 0) {
+            msg += `${importedCount} ${importedCount === 1 ? 'game' : 'games'} imported`
+          }
+          if (removedCount > 0) {
+            if (msg) msg += ', '
+            msg += `${removedCount} removed`
+          }
+          triggerToast(msg, 'success', true)
+        }
       } else {
         triggerToast(`Import failed: ${res.error}`, 'error')
       }
@@ -1008,18 +1076,19 @@ const App = () => {
     }
   }
 
-  const handleUpdateAllCovers = async () => {
-    triggerToast('Updating library cover art...', 'info')
+  const handleUpdateAllCovers = async (customTriggerToast) => {
+    const toast = typeof customTriggerToast === 'function' ? customTriggerToast : triggerToast
+    toast('Downloading covers…', 'info')
     try {
       const res = await window.api.updateAllCovers()
       if (res.success) {
-        triggerToast('Cover art update triggered in background!', 'success')
+        toast('Covers updated', 'success')
       } else {
-        triggerToast('Failed to trigger cover update.', 'error')
+        toast('Failed to trigger cover update.', 'error')
       }
     } catch (e) {
       console.error('Covers update error:', e)
-      triggerToast('Failed to run covers update.', 'error')
+      toast('Failed to run covers update.', 'error')
     }
   }
 
@@ -1050,28 +1119,28 @@ const App = () => {
 
   const handleAddGameSubmit = async (e) => {
     e.preventDefault()
-    if (!formName || !formExecutable) return alert('Title and Executable Path are required!')
+    if (!formName || !formExecutable) return triggerToast('Title and Executable Path are required!', 'error')
     try {
       const result = await window.api.saveGame({ name: formName, executable: formExecutable, developer: formDeveloper || null, source: 'imported', hidden: false })
       if (result.success) {
         if (formCoverUrl) await window.api.downloadCoverUrl(result.game.game_id, formCoverUrl)
         await fetchGames(); setShowAddModal(false); resetForm()
       } else {
-        alert('Error: ' + result.error)
+        triggerToast('Error: ' + result.error, 'error')
       }
     } catch (e) { console.error('Failed to add game:', e) }
   }
 
   const handleEditGameSubmit = async (e) => {
     e.preventDefault()
-    if (!formName || !formExecutable) return alert('Title and Executable are required!')
+    if (!formName || !formExecutable) return triggerToast('Title and Executable are required!', 'error')
     try {
       const result = await window.api.saveGame({ game_id: editingGame.game_id, name: formName, executable: formExecutable, developer: formDeveloper || null, source: editingGame.source || 'imported' })
       if (result.success) {
         if (formCoverUrl !== editingGame.coverUrl) await window.api.downloadCoverUrl(editingGame.game_id, formCoverUrl)
         await fetchGames(); setShowEditModal(false); resetForm()
       } else {
-        alert('Error: ' + result.error)
+        triggerToast('Error: ' + result.error, 'error')
       }
     } catch (e) { console.error('Failed to update game:', e) }
   }
@@ -1080,12 +1149,29 @@ const App = () => {
     try {
       const folderPath = await window.api.selectFolder()
       if (!folderPath) return
+
+      // Save current games list so user can undo this import using Ctrl + Z
+      lastImportedGamesListRef.current = [...games]
+      lastDeletedGamesListRef.current = null
+      lastDeletedGameRef.current = null
+      lastToggledHideGameRef.current = null
+
+      setScanProgress({ current: 0, total: 100, message: '' })
+      setScanMode('folder')
       setIsScanning(true)
-      triggerToast('Scanning selected folder for games...', 'info')
       const result = await window.api.scanFolder(folderPath)
+      // Force-clear as safety net; backend's 'active' flag handles concurrent case
       setIsScanning(false)
+      await new Promise(resolve => setTimeout(resolve, 350))
       if (result.success) {
-        triggerToast(result.count > 0 ? `Successfully scanned! Added ${result.count} new games.` : 'Scan complete. No new games found.', result.count > 0 ? 'success' : 'info')
+        if (result.count === 0) {
+          triggerToast('No new games found', 'info', {
+            label: 'Preferences',
+            onClick: () => openPreferences('import')
+          })
+        } else {
+          triggerToast(`${result.count} ${result.count === 1 ? 'game' : 'games'} imported`, 'success', true)
+        }
         await fetchGames()
       } else {
         triggerToast(`Scan failed: ${result.error}`, 'error')
@@ -1099,12 +1185,12 @@ const App = () => {
   const handleSgdbSearch = async () => {
     if (!sgdbSearchQuery) return
     setSgdbSearching(true); setSelectedSgdbGame(null); setSgdbCovers([])
-    try { setSgdbGames(await window.api.searchSteamGridDB(sgdbSearchQuery)) } catch (e) { alert('Search failed: ' + e.message) } finally { setSgdbSearching(false) }
+    try { setSgdbGames(await window.api.searchSteamGridDB(sgdbSearchQuery)) } catch (e) { triggerToast('Search failed: ' + e.message, 'error') } finally { setSgdbSearching(false) }
   }
 
   const handleSgdbSelectGame = async (game) => {
     setSelectedSgdbGame(game); setSgdbCoversLoading(true)
-    try { setSgdbCovers(await window.api.fetchSteamGridDBCovers(game.id)) } catch (e) { alert('Failed to retrieve covers: ' + e.message) } finally { setSgdbCoversLoading(false) }
+    try { setSgdbCovers(await window.api.fetchSteamGridDBCovers(game.id)) } catch (e) { triggerToast('Failed to retrieve covers: ' + e.message, 'error') } finally { setSgdbCoversLoading(false) }
   }
 
   const handleSgdbDownloadCover = async (coverUrl, coverId) => {
@@ -1113,11 +1199,11 @@ const App = () => {
       try {
         const result = await window.api.downloadCoverUrl(editingGame.game_id, coverUrl)
         if (result.success) { setFormCoverUrl(result.coverUrl); setFailedCovers(p => ({ ...p, [editingGame.game_id]: false })) }
-        else alert('Failed to apply cover: ' + result.error)
+        else triggerToast('Failed to apply cover: ' + result.error, 'error')
       } catch (e) { console.error('Cover download error:', e) } finally { setDownloadingCoverId(null) }
     } else {
       setFormCoverUrl(coverUrl)
-      alert('Cover selected! It will be downloaded when you save the game.')
+      triggerToast('Cover selected! It will be downloaded when you save the game.', 'info')
     }
   }
 
@@ -1177,6 +1263,8 @@ const App = () => {
         showHidden={showHidden}
         setShowHidden={setShowHidden}
         isScanning={isScanning}
+        isCoverDownloading={isCoverDownloading}
+        coverDownloadProgress={coverDownloadProgress}
         handleScanGamesFolder={handleScanGamesFolder}
         openAddModal={openAddModal}
         sortBy={sortBy}
@@ -1184,8 +1272,9 @@ const App = () => {
         showSearch={showSearch}
         setShowSearch={setShowSearch}
         openAboutModal={() => setShowAboutModal(true)}
-        openPreferencesModal={() => setShowPreferencesModal(true)}
+        openPreferencesModal={() => openPreferences('general')}
         openShortcutsModal={handleOpenShortcuts}
+        handleRunAutoScan={handleRunAutoScan}
       />
 
       <div style={styles.container}>
@@ -1212,37 +1301,16 @@ const App = () => {
 
         {/* ── Main Content ────────────────────────────────────────────────── */}
         <div style={styles.main}>
-          {/* Launch Toast */}
-          <AnimatePresence>
-            {launchingGame && (
-              <motion.div
-                initial={{ opacity: 0, y: -50, scale: 0.9, x: '-50%' }}
-                animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-                exit={{ opacity: 0, y: -20, scale: 0.95, x: '-50%' }}
-                style={{ ...styles.toast, ...(launchStatus === 'error' ? styles.toastError : launchStatus === 'success' ? styles.toastSuccess : {}) }}
-              >
-                {launchStatus === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
-                  : launchStatus === 'error' ? <AlertCircle size={18} color="#f87171" />
-                  : <div style={styles.spinner} />}
-                <span style={styles.toastText}>
-                  {launchStatus === 'success' ? `Started ${launchingGame} successfully!`
-                    : launchStatus === 'error' ? `Failed to launch ${launchingGame}`
-                    : `Launching ${launchingGame}...`}
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* General Toast */}
           <AnimatePresence>
             {activeToast && (
               <motion.div
-                initial={{ opacity: 0, y: -50, scale: 0.9, x: '-50%' }}
+                initial={{ opacity: 0, y: 50, scale: 0.9, x: '-50%' }}
                 animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-                exit={{ opacity: 0, y: -20, scale: 0.95, x: '-50%' }}
+                exit={{ opacity: 0, y: 20, scale: 0.95, x: '-50%' }}
                 style={{
                   ...styles.toast,
-                  top: launchingGame ? '80px' : '20px',
+                  bottom: '20px',
                   ...(activeToast.type === 'error' ? styles.toastError : activeToast.type === 'success' ? styles.toastSuccess : {}),
                   display: 'flex',
                   alignItems: 'center',
@@ -1253,11 +1321,13 @@ const App = () => {
                   : activeToast.type === 'error' ? <AlertCircle size={18} color="#f87171" />
                   : <Info size={18} color={`#${accentHex}`} />}
                 <span style={styles.toastText}>{activeToast.message}</span>
-                {activeToast.showUndo && (
+                {activeToast.button && (
                   <button
                     type="button"
                     onClick={() => {
-                      handleUndo()
+                      if (typeof activeToast.button.onClick === 'function') {
+                        activeToast.button.onClick()
+                      }
                       setActiveToast(null)
                     }}
                     style={{
@@ -1275,7 +1345,7 @@ const App = () => {
                     }}
                     className="glass-btn"
                   >
-                    Undo
+                    {activeToast.button.label}
                   </button>
                 )}
               </motion.div>
@@ -1458,6 +1528,8 @@ const App = () => {
               onRemoveAllGames={handleRemoveAllGames}
               onToggleWindowsAccent={handleToggleWindowsAccent}
               onUpdateCovers={handleUpdateAllCovers}
+              onUndo={handleUndo}
+              initialTab={preferencesInitialTab}
             />
           )}
           {showShortcutsModal && (
@@ -1511,7 +1583,7 @@ const App = () => {
                   color: '#f8fafc',
                   letterSpacing: '-0.3px'
                 }}>
-                  Importing Games...
+                  {scanMode === 'folder' ? 'Scanning Folder...' : 'Importing Games...'}
                 </div>
                 {/* Custom Animated Real Progress Bar */}
                 <div style={{

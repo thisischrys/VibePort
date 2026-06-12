@@ -110,7 +110,6 @@ export async function scanSteamLibrary() {
           console.log(`[AUTO-SCAN] Steam game ${gameId} uninstalled. Removing...`)
           try {
             fs.unlinkSync(path.join(gamesPath, dbFile))
-            removeCoverFiles(gameId)
           } catch (e) {
             console.error(`[AUTO-SCAN] Failed to remove ${gameId}:`, e.message)
           }
