@@ -4,10 +4,16 @@ import { IPC_EVENTS } from '../../src/shared/ipc-events.js'
 class ScanManager {
   constructor() {
     this.activeScanCount = 0;
+    this.cancelRequested = false;
   }
 
   startScan() {
     this.activeScanCount++;
+    this.cancelRequested = false;
+  }
+
+  cancelAll() {
+    this.cancelRequested = true;
   }
 
   endScan() {

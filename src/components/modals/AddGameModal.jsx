@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { styles } from '../../theme/styles.js'
+import { IpcManager } from '../../shared/IpcManager.js'
 
 const AddGameModal = ({
   accentHex,
@@ -135,7 +136,7 @@ const AddGameModal = ({
                   }}
                   onClick={async () => {
                     try {
-                      const file = await window.api.selectFile()
+                      const file = await IpcManager.selectFile()
                       if (file) setFormExecutable(file)
                     } catch (e) {
                       console.error('Failed to select file:', e)

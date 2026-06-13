@@ -6,7 +6,7 @@ test.describe('VibePort E2E Basic', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: ['.'],
+      args: ['.', '--test-mode'],
     });
     window = await electronApp.firstWindow();
   });
@@ -24,6 +24,10 @@ test.describe('VibePort E2E Basic', () => {
     // VibePort UI structure (assuming it has some standard root element)
     const root = window.locator('#root');
     await expect(root).toBeVisible();
+
+    // Check if React rendered the titlebar or sidebar content successfully
+    const sidebarBrand = window.locator('text=VibePort').first();
+    await expect(sidebarBrand).toBeVisible({ timeout: 5000 });
 
     // Check title (often VibePort or similar)
     const title = await window.title();

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Edit3, EyeOff, Trash2, X, Globe, Search, Loader } from 'lucide-react'
 import { styles } from '../../theme/styles.js'
+import { IpcManager } from '../../shared/IpcManager.js'
 
 const normalizeGameName = (name) => {
   if (!name) return ''
@@ -94,13 +95,13 @@ const EditGameModal = ({
     setSelectedGame(null)
     setCovers([])
     try {
-      const results = await window.api.searchSteamGridDB(queryStr)
+      const results = await IpcManager.searchSteamGridDB(queryStr)
       setSgdbResults(results || [])
       if (results && results.length > 0) {
         const bestMatch = findBestSgdbMatch(results, queryStr)
         setSelectedGame(bestMatch)
         setLoadingCovers(true)
-        const coverResults = await window.api.fetchSteamGridDBCovers(bestMatch.id)
+        const coverResults = await IpcManager.fetchSteamGridDBCovers(bestMatch.id)
         setCovers(coverResults || [])
         const hasAnim = coverResults?.some(c => c.type === 'animated')
         setCoverTypeFilter(hasAnim ? 'animated' : 'static')
@@ -118,7 +119,7 @@ const EditGameModal = ({
     setLoadingCovers(true)
     setCovers([])
     try {
-      const results = await window.api.fetchSteamGridDBCovers(game.id)
+      const results = await IpcManager.fetchSteamGridDBCovers(game.id)
       setCovers(results || [])
       const hasAnim = results?.some(c => c.type === 'animated')
       setCoverTypeFilter(hasAnim ? 'animated' : 'static')
@@ -309,7 +310,7 @@ const EditGameModal = ({
                       type="button"
                       onClick={async () => {
                         try {
-                          const file = await window.api.selectImage()
+                          const file = await IpcManager.selectImage()
                           if (file) {
                             setFormCoverUrl(`media://${file.replace(/\\/g, '/')}`)
                           }
@@ -387,7 +388,7 @@ const EditGameModal = ({
                     }}
                     onClick={async () => {
                       try {
-                        const file = await window.api.selectFile()
+                        const file = await IpcManager.selectFile()
                         if (file) setFormExecutable(file)
                       } catch (e) {
                         console.error('Failed to select file:', e)

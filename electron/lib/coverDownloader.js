@@ -281,48 +281,152 @@ export async function downloadCoverForGame(gameData, notifyRenderer, preferStati
   return sgdbSuccess
 }
 
-let isDownloadingCovers = false
+export function sendCoverDownloadStatus(active, current, total) {
+  BrowserWindow.getAllWindows().forEach(win => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(IPC_EVENTS.COVER_DOWNLOAD_STATUS, { active, current, total })
+    }
+  })
+}
+
+let isDownloadingStatic = false;
+let isDownloadingAnimated = false;
+let animatedQueue = [];
+let animatedQueueTotal = 0;
+let animatedQueueCurrent = 0;
 
 // ─── Background Cover Downloader ──────────────────────────────────────────────
-export async function runBackgroundCoverDownloader(notifyRenderer, preferStatic = false) {
-  if (isDownloadingCovers) {
-    console.log('[BG-COVER] Background cover downloader is already running. Skipping concurrent run.')
-    return
-  }
-  isDownloadingCovers = true
+export async function runBackgroundCoverDownloader(notifyRenderer, preferStatic = false, gamesList = null, mode = 'scan') {
+  if (preferStatic) {
+    if (isDownloadingStatic) {
+      console.log('[BG-COVER] Static cover downloader is already running. Skipping concurrent run.')
+      return
+    }
+    isDownloadingStatic = true
 
-  try {
-    console.log(`[BG-COVER] Starting background cover downloader (preferStatic: ${preferStatic})...`)
-    if (!fs.existsSync(gamesPath)) return
-
-    const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
-    const totalFiles = files.length
-
-    for (let i = 0; i < totalFiles; i++) {
-      const file = files[i]
-      try {
-        const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
-        if (data.removed || data.blacklisted) continue
-
-        const name = data.name || 'Unknown Game'
-        const currentPercent = Math.round(10 + (90 * (i / totalFiles)))
-        
-        if (preferStatic) {
-          scanManager.sendProgress(currentPercent, 100, `Synchronizing cover art for ${name}...`)
+    try {
+      console.log(`[BG-COVER] Starting static cover downloader (mode: ${mode}, custom games list: ${!!gamesList})...`)
+      let targetGames = []
+      if (gamesList) {
+        targetGames = gamesList
+      } else {
+        if (!fs.existsSync(gamesPath)) return
+        const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+        for (const file of files) {
+          try {
+            const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
+            targetGames.push(data)
+          } catch (err) {
+            console.error(`[BG-COVER] Error reading game file ${file} for static downloader:`, err.message)
+          }
         }
+      }
 
-        await downloadCoverForGame(data, notifyRenderer, preferStatic)
-      } catch (err) {
-        console.error(`[BG-COVER] Error processing cover for ${file}:`, err.message)
+      const totalGames = targetGames.length
+      if (totalGames === 0) return
+
+      for (let i = 0; i < totalGames; i++) {
+        if (scanManager.cancelRequested) break
+        const gameData = targetGames[i]
+        try {
+          if (gameData.removed || gameData.blacklisted) continue
+
+          const name = gameData.name || 'Unknown Game'
+          const currentPercent = Math.round(10 + (90 * (i / totalGames)))
+          scanManager.sendProgress(currentPercent, 100, `Synchronizing cover art for ${name}...`, mode)
+
+          await downloadCoverForGame(gameData, notifyRenderer, true)
+        } catch (err) {
+          console.error(`[BG-COVER] Error processing static cover for ${gameData.game_id || 'unknown'}:`, err.message)
+        }
+      }
+      scanManager.sendProgress(100, 100, 'Cover art synchronization complete!', mode)
+    } finally {
+      isDownloadingStatic = false
+      if (notifyRenderer) notifyRenderer()
+    }
+  } else {
+    // Animated cover downloads: route through the queue manager
+    let targetGames = []
+    if (gamesList) {
+      targetGames = gamesList
+    } else {
+      if (!fs.existsSync(gamesPath)) return
+      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+      for (const file of files) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
+          targetGames.push(data)
+        } catch (err) {
+          console.error(`[BG-COVER] Error reading game file ${file} for animated downloader:`, err.message)
+        }
       }
     }
-    
-    if (preferStatic) {
-      scanManager.sendProgress(100, 100, 'Cover art synchronization complete!')
+
+    // Filter targetGames to only include those that actually need animated cover downloads
+    const toQueue = []
+    for (const game of targetGames) {
+      if (game.removed || game.blacklisted) continue
+      if (game.cover_type === 'animated') continue
+
+      // Avoid duplicates already in the queue
+      if (animatedQueue.some(g => g.game_id === game.game_id)) continue
+
+      toQueue.push(game)
     }
-  } finally {
-    isDownloadingCovers = false
-    console.log(`[BG-COVER] Background cover downloader completed (preferStatic: ${preferStatic}).`)
-    if (notifyRenderer) notifyRenderer()
+
+    if (toQueue.length === 0) {
+      // If we're not currently running, send a final inactive status to make sure circle goes away
+      if (!isDownloadingAnimated) {
+        sendCoverDownloadStatus(false, 0, 0)
+      }
+      return
+    }
+
+    if (isDownloadingAnimated) {
+      console.log(`[BG-COVER] Animated cover downloader already running. Queuing ${toQueue.length} new games and recalculating...`)
+      animatedQueue.push(...toQueue)
+      animatedQueueTotal = animatedQueueCurrent + animatedQueue.length
+      sendCoverDownloadStatus(true, animatedQueueCurrent, animatedQueueTotal)
+    } else {
+      console.log(`[BG-COVER] Starting animated cover downloader with ${toQueue.length} games...`)
+      animatedQueue = [...toQueue]
+      animatedQueueTotal = toQueue.length
+      animatedQueueCurrent = 0
+      isDownloadingAnimated = true
+
+      // Always start with empty progress circle when it begins displaying
+      sendCoverDownloadStatus(true, 0, animatedQueueTotal)
+
+      // Start the background processing loop (non-blocking)
+      ;(async () => {
+        // Small delay to allow the UI to transition and show the empty circle
+        await new Promise(r => setTimeout(r, 100))
+
+        while (animatedQueue.length > 0) {
+          if (scanManager.cancelRequested) {
+            console.log('[BG-COVER] Cancel requested, clearing animated cover queue.')
+            animatedQueue = []
+            break
+          }
+          const game = animatedQueue.shift()
+          try {
+            await downloadCoverForGame(game, notifyRenderer, false)
+          } catch (err) {
+            console.error(`[BG-COVER] Animated download failed for ${game.name}:`, err.message)
+          }
+          animatedQueueCurrent++
+          sendCoverDownloadStatus(true, animatedQueueCurrent, animatedQueueTotal)
+        }
+
+        // Completed
+        sendCoverDownloadStatus(false, animatedQueueTotal, animatedQueueTotal)
+        isDownloadingAnimated = false
+        animatedQueueTotal = 0
+        animatedQueueCurrent = 0
+        if (notifyRenderer) notifyRenderer()
+        console.log('[BG-COVER] Animated cover downloader completed.')
+      })()
+    }
   }
 }

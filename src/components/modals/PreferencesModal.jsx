@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Search, Home, Download, CheckCircle2, AlertCircle, Info } from 'lucide-react'
 import { LauncherIcon } from '../LauncherIcon.jsx'
+import { IpcManager } from '../../shared/IpcManager.js'
 
 // Custom modern Adwaita-style toggle switch
 const GtkSwitch = ({ active, onChange, accentColor }) => (
@@ -85,18 +86,14 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
     
     // Sync to backend settings.json
     const backendKey = key.replace('vibeport_', '')
-    if (window.api?.saveSettings) {
-      window.api.saveSettings({ [backendKey]: newVal }).catch(console.error)
-    }
+    IpcManager.saveSettings({ [backendKey]: newVal }).catch(console.error)
   }
 
   const handleToggleAccent = () => {
     const nextVal = !useWindowsAccent
     setUseWindowsAccent(nextVal)
     onToggleWindowsAccent(nextVal)
-    if (window.api?.saveSettings) {
-      window.api.saveSettings({ use_windows_accent: nextVal }).catch(console.error)
-    }
+    IpcManager.saveSettings({ use_windows_accent: nextVal }).catch(console.error)
   }
 
   const handleRemoveAllClick = () => {

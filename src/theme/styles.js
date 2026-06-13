@@ -9,6 +9,7 @@ export const styles = {
     height: '100vh',
     overflow: 'hidden',
     background: 'var(--bg-deep, #08070d)',
+    position: 'relative',
   },
   container: {
     display: 'flex',
@@ -501,10 +502,10 @@ export const styles = {
   },
   editActionContainer: {
     position: 'absolute',
-    top: '12px',
-    right: '12px',
-    width: '32px',
-    height: '32px',
+    top: '6px',
+    right: '6px',
+    width: '34px',
+    height: '34px',
     borderRadius: '8px',
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     border: '1px solid rgba(255,255,255,0.06)',
@@ -574,7 +575,7 @@ export const styles = {
     maxWidth: '280px',
   },
   toast: {
-    position: 'absolute',
+    position: 'fixed',
     bottom: '20px',
     left: '50%',
     backgroundColor: '#0f0e16',
@@ -585,7 +586,7 @@ export const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    zIndex: 100,
+    zIndex: 9500,
   },
   toastSuccess: {
     border: '1px solid rgba(74, 222, 128, 0.18)',
@@ -901,4 +902,45 @@ export const styles = {
   hiddenManagerList: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', flex: 1, overflowY: 'auto' },
   infoBox: { display: 'flex', gap: '8px', padding: '12px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.12)', borderRadius: '8px', marginTop: '6px' },
   infoText: { fontSize: '11px', lineHeight: '1.4', color: '#94a3b8' },
+  detailsIconBtn: {
+    width: '44px',
+    height: '44px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    border: 'none',
+    color: '#cbd5e1',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  detailsDropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: '8px',
+    width: '200px',
+    backgroundColor: '#33373b', // similar to the screenshot
+    borderRadius: '12px',
+    padding: '8px',
+    zIndex: 100,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
+  },
+  detailsDropdownItem: {
+    padding: '10px 12px',
+    color: '#f8fafc',
+    fontSize: '13px',
+    cursor: 'pointer',
+    borderRadius: '6px',
+    transition: 'background-color 0.15s'
+  },
+  detailsDropdownHeader: {
+    padding: '8px 12px 12px 12px',
+    color: '#60a5fa', // blueish as in the screenshot
+    fontSize: '12px',
+    fontWeight: '600'
+  }
 }

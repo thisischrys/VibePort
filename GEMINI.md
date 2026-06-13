@@ -9,3 +9,7 @@ Rules:
 
 Project Context:
 - Legacy Cartridges reference code located at: d:\projects\cartridges-backup (if cloned). Used to compare original implementation behavior.
+
+Architecture Rules:
+- All IPC and window management calls must go through `src/shared/IpcManager.js`.
+- Never use `window.api` directly inside components.

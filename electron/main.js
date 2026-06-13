@@ -8,10 +8,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Detect if running in test mode
+const isTestMode = process.argv.includes('--test-mode')
+
 // ─── Override userData path to use proper capitalization ──────────────────────
 // Electron derives userData from package.json "name" (lowercase "vibeport").
 // We force it to "VibePort" here, BEFORE paths.js reads app.getPath('userData').
-{
+if (isTestMode) {
+  const tempUserData = path.join(app.getPath('temp'), 'vibeport-test-user-data')
+  app.setPath('userData', tempUserData)
+} else {
   const currentUserData = app.getPath('userData')
   const parentDir = path.dirname(currentUserData)
   const correctedUserData = path.join(parentDir, 'VibePort')
@@ -40,10 +46,10 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.vibeport.app')
 }
 
-const gotTheLock = app.requestSingleInstanceLock()
+const gotTheLock = isTestMode ? true : app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.quit()
-} else {
+} else if (!isTestMode) {
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
@@ -677,31 +683,11 @@ ipcMain.handle(IPC_EVENTS.SCAN_FOLDER, async (event, folderPath) => {
 
     if (addedCount > 0) {
       notifyRenderer()
-      
-      scanManager.sendProgress(10, 100, 'Scanning complete. Fetching static cover art...', 'folder')
-
-      for (let i = 0; i < addedGames.length; i++) {
-        const game = addedGames[i]
-        const percent = Math.round(10 + (80 * (i / addedGames.length)))
-        scanManager.sendProgress(percent, 100, `Downloading cover art for ${game.name}...`, 'folder')
-        try {
-          await downloadCoverForGame(game, notifyRenderer, true)
-        } catch (err) {
-          console.error(`[BG-COVER] Scan folder static cover downloader failed for ${game.name}:`, err.message)
-        }
-      }
-
-      scanManager.sendProgress(100, 100, 'Scan complete!', 'folder')
+      await runBackgroundCoverDownloader(notifyRenderer, true, addedGames, 'folder')
 
       // Kick off animated cover upgrades in the background (non-blocking)
       ;(async () => {
-        for (const game of addedGames) {
-          try {
-            await downloadCoverForGame(game, notifyRenderer, false)
-          } catch (err) {
-            console.error(`[BG-COVER] Scan folder animated cover downloader failed for ${game.name}:`, err.message)
-          }
-        }
+        await runBackgroundCoverDownloader(notifyRenderer, false, addedGames, 'folder')
       })()
     }
     scanManager.endScan()
@@ -918,6 +904,7 @@ ipcMain.handle(IPC_EVENTS.UPDATE_ALL_COVERS, async () => {
 ipcMain.handle(IPC_EVENTS.REMOVE_ALL_GAMES, async () => {
   try {
     console.log('[DANGER] Wiping all games from database completely...')
+    scanManager.cancelAll()
     deleteAllGames()
     notifyRenderer()
     return true
@@ -930,6 +917,7 @@ ipcMain.handle(IPC_EVENTS.REMOVE_ALL_GAMES, async () => {
 ipcMain.handle(IPC_EVENTS.UNDO_IMPORT, async (event, gamesToRestore) => {
   try {
     console.log('[UNDO] Undoing library scan / folder import...')
+    scanManager.cancelAll()
     const existingIds = getAllGameIds()
     const toDelete = calculateUndoDeletions(existingIds, gamesToRestore)
     

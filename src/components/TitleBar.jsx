@@ -4,6 +4,7 @@ import {
   Menu, ChevronRight, ChevronLeft, Loader2, Check, Info
 } from 'lucide-react'
 import { styles } from '../theme/styles.js'
+import { IpcManager } from '../shared/IpcManager.js'
 
 // Shaded sidebar toggle icon reminiscent of the app window
 const Sidebar = ({ size = 18, style = {} }) => (
@@ -58,6 +59,9 @@ const getSourceLabel = (src) => {
 
 export const TitleBar = ({
   accentHex,
+  viewState,
+  closeDetailsView,
+  selectedGameName,
   searchTerm,
   setSearchTerm,
   selectedSource,
@@ -92,16 +96,12 @@ export const TitleBar = ({
 
   // Subscribe to Electron window events
   useEffect(() => {
-    if (window.api?.isMaximized) {
-      window.api.isMaximized().then(setIsMaximized).catch(console.error)
-    }
+    IpcManager.isMaximized().then(setIsMaximized).catch(console.error)
 
-    if (window.api?.onWindowStateChanged) {
-      const unsub = window.api.onWindowStateChanged((isMax) => {
-        setIsMaximized(isMax)
-      })
-      return () => unsub()
-    }
+    const unsub = IpcManager.onWindowStateChanged((isMax) => {
+      setIsMaximized(isMax)
+    })
+    return () => { if (unsub) unsub() }
   }, [])
 
   // Handle outside clicks to close popovers
@@ -137,7 +137,7 @@ export const TitleBar = ({
             setShowPlusDropdown(!showPlusDropdown)
           }
         }}
-        title="Add Options"
+        title="Add Games"
       >
         {isScanning ? (
           <Loader2 size={18} style={{ color: '#ffffff', animation: 'spin 1s linear infinite' }} />
@@ -254,7 +254,7 @@ export const TitleBar = ({
             setShowSearch(!showSearch)
           }
         }}
-        title="Search Games"
+        title="Search"
       >
         <Search size={18} style={{ color: showSearch ? '#ffffff' : '#cbd5e1' }} />
       </div>
@@ -455,7 +455,7 @@ export const TitleBar = ({
             transition: 'all 0.15s ease',
             outline: 'none'
           }}
-          onClick={() => window.api?.minimizeWindow()}
+          onClick={() => IpcManager.minimizeWindow()}
           title="Minimize"
         >
           <svg width="10" height="2" viewBox="0 0 10 2" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -479,7 +479,7 @@ export const TitleBar = ({
             transition: 'all 0.15s ease',
             outline: 'none'
           }}
-          onClick={() => window.api?.maximizeWindow()}
+          onClick={() => IpcManager.maximizeWindow()}
           title={isMaximized ? "Restore" : "Maximize"}
         >
           {isMaximized ? (
@@ -510,7 +510,7 @@ export const TitleBar = ({
             transition: 'all 0.15s ease',
             outline: 'none'
           }}
-          onClick={() => window.api?.closeWindow()}
+          onClick={() => IpcManager.closeWindow()}
           title="Close"
         >
           <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -530,178 +530,86 @@ export const TitleBar = ({
       backgroundColor: 'transparent',
       background: 'transparent',
       borderBottom: 'none',
+      backdropFilter: viewState === 'details' ? 'none' : (styles.titlebar?.backdropFilter || 'blur(24px)'),
       padding: 0,
       position: 'relative'
     }}>
-      {showSidebar ? (
-        // ─── STATE A: SIDEBAR OPEN ───
-        <>
-          {/* Sidebar part of the top bar (Left 260px) */}
-          <div style={{
-            width: '260px',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            paddingLeft: '16px',
-            paddingRight: '16px',
-            borderRight: '1px solid rgba(255, 255, 255, 0.04)',
-            boxSizing: 'border-box',
-            backgroundColor: 'var(--sidebar-bg, #12111b)',
-            WebkitAppRegion: 'no-drag',
-            position: 'relative'
-          }}>
-            {showHidden ? (
-              <div
-                className="header-action"
-                style={styles.actionIconContainer}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (showPlusDropdown || showMenu) {
-                    setShowPlusDropdown(false)
-                    setShowMenu(false)
-                  } else {
-                    setShowHidden(false)
-                  }
-                }}
-                title="Back to Library"
-              >
-                <ChevronLeft size={18} style={styles.actionIcon} />
-              </div>
-            ) : (
-              <div
-                className="header-action"
-                style={styles.actionIconContainer}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (showPlusDropdown || showMenu) {
-                    setShowPlusDropdown(false)
-                    setShowMenu(false)
-                  } else {
-                    setShowSidebar(false)
-                  }
-                }}
-                title="Hide Sidebar"
-              >
-                <Sidebar size={18} style={styles.actionIcon} />
-              </div>
-            )}
-            
-            {/* Absolute Centered VibePort Logo in the Sidebar portion */}
-            <div style={{
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              pointerEvents: 'none',
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: '14.5px',
-              fontWeight: '700',
-              color: '#f8fafc',
-              letterSpacing: '-0.3px',
-              WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
-            }}>
-              VibePort
-            </div>
-          </div>
-
-          {/* Main content part of the top bar (Remaining space) */}
-          <div style={{
-            flex: 1,
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingLeft: '16px',
-            paddingRight: '10px',
-            backgroundColor: 'var(--bg-deep, #08070d)',
-            position: 'relative',
-            boxSizing: 'border-box'
-          }}>
-            {/* The + button aligns above the main content on the left of this part */}
-            <div style={{ WebkitAppRegion: 'no-drag' }}>
-              {!showHidden && renderPlusDropdown()}
-            </div>
-
-            {/* Centered active source name inside the main content part */}
-            <div style={{
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              pointerEvents: 'none',
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: '14.5px',
-              fontWeight: '700',
-              color: '#cbd5e1',
-              letterSpacing: '-0.3px',
-              WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
-            }}>
-              {activeTitle}
-            </div>
-
-            {/* Search, Menu, and Window Controls */}
-            {renderRightControls()}
-          </div>
-        </>
-      ) : (
-        // ─── STATE B: SIDEBAR CLOSED ───
+      {/* ─── 1. LEFT SIDEBAR / CONTROL REGION ─── */}
+      <div style={{
+        height: '100%',
+        display: 'flex', 
+        alignItems: 'center', 
+        width: (showSidebar && !showHidden && viewState !== 'details') ? '260px' : '52px',
+        paddingLeft: (showSidebar && !showHidden && viewState !== 'details') ? '16px' : '7px',
+        borderRight: (showSidebar && !showHidden && viewState !== 'details') ? '1px solid rgba(255, 255, 255, 0.04)' : 'none',
+        boxSizing: 'border-box',
+        backgroundColor: (showSidebar && !showHidden && viewState !== 'details') 
+          ? 'var(--sidebar-bg, #12111b)' 
+          : (viewState === 'details' ? 'transparent' : 'var(--bg-deep, #08070d)'),
+        overflow: 'hidden',
+        transition: (showHidden || viewState === 'details') ? 'none' : 'width 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), padding-left 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        WebkitAppRegion: 'no-drag',
+        position: 'relative',
+        flexShrink: 0
+      }}>
         <div style={{
-          width: '100%',
+          width: '228px', // Fixed static width for alignment
           height: '100%',
           display: 'flex',
           alignItems: 'center',
-          backgroundColor: 'var(--bg-deep, #08070d)',
-          paddingLeft: '16px',
-          paddingRight: '10px',
           position: 'relative',
-          boxSizing: 'border-box'
+          flexShrink: 0
         }}>
-          {/* Left Controls (Toggle + Plus buttons next to each other) */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            WebkitAppRegion: 'no-drag'
-          }}>
-            {showHidden ? (
-              <div
-                className="header-action"
-                style={styles.actionIconContainer}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (showPlusDropdown || showMenu) {
-                    setShowPlusDropdown(false)
-                    setShowMenu(false)
-                  } else {
-                    setShowHidden(false)
-                  }
-                }}
-                title="Back to Library"
-              >
-                <ChevronLeft size={18} style={styles.actionIcon} />
-              </div>
-            ) : (
-              <>
-                <div
-                  className="header-action"
-                  style={styles.actionIconContainer}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (showPlusDropdown || showMenu) {
-                      setShowPlusDropdown(false)
-                      setShowMenu(false)
-                    } else {
-                      setShowSidebar(true)
-                    }
-                  }}
-                  title="Show Sidebar"
-                >
-                  <Sidebar size={18} style={styles.actionIcon} />
-                </div>
-                {renderPlusDropdown()}
-              </>
-            )}
-          </div>
-
-          {/* Centered active source name centered across the entire window */}
+          {/* Main Action Button (Back or Sidebar Toggle) */}
+          {viewState === 'details' ? (
+            <div
+              className="header-action"
+              style={styles.actionIconContainer}
+              onClick={(e) => {
+                e.stopPropagation()
+                closeDetailsView()
+              }}
+              title="Back to Grid"
+            >
+              <ChevronLeft size={18} style={styles.actionIcon} />
+            </div>
+          ) : showHidden ? (
+            <div
+              className="header-action"
+              style={styles.actionIconContainer}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (showPlusDropdown || showMenu) {
+                  setShowPlusDropdown(false)
+                  setShowMenu(false)
+                } else {
+                  setShowHidden(false)
+                }
+              }}
+              title="Back to Library"
+            >
+              <ChevronLeft size={18} style={styles.actionIcon} />
+            </div>
+          ) : (
+            <div
+              className="header-action"
+              style={styles.actionIconContainer}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (showPlusDropdown || showMenu) {
+                  setShowPlusDropdown(false)
+                  setShowMenu(false)
+                } else {
+                  setShowSidebar(!showSidebar)
+                }
+              }}
+              title="Toggle Sidebar"
+            >
+              <Sidebar size={18} style={styles.actionIcon} />
+            </div>
+          )}
+          
+          {/* Absolute Centered VibePort Logo (Visible only when sidebar is open) */}
           <div style={{
             position: 'absolute',
             left: '50%',
@@ -710,19 +618,66 @@ export const TitleBar = ({
             fontFamily: "'Outfit', sans-serif",
             fontSize: '14.5px',
             fontWeight: '700',
-            color: '#cbd5e1',
+            color: '#f8fafc',
             letterSpacing: '-0.3px',
-            WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
+            WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag',
+            opacity: (showSidebar && !showHidden && viewState !== 'details') ? 1 : 0,
+            transition: 'opacity 0.15s ease'
           }}>
-            {activeTitle}
-          </div>
-
-          {/* Search, Menu, and Window Controls (Pushed to far right) */}
-          <div style={{ marginLeft: 'auto', WebkitAppRegion: 'no-drag' }}>
-            {renderRightControls()}
+            VibePort
           </div>
         </div>
-      )}
+      </div>
+
+      {/* ─── 2. MAIN CONTENT AREA (Remaining space) ─── */}
+      <div style={{
+        flex: 1,
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        position: 'relative',
+        boxSizing: 'border-box',
+        backgroundColor: viewState === 'details' ? 'transparent' : 'var(--bg-deep, #08070d)',
+        paddingLeft: '16px',
+        paddingRight: '10px'
+      }}>
+        {/* Left Side: + (Add Options) button */}
+        <div style={{ WebkitAppRegion: 'no-drag' }}>
+          {!showHidden && viewState !== 'details' && renderPlusDropdown()}
+        </div>
+
+        {/* Centered active source name/title absolute-centered within the main area */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          pointerEvents: 'none',
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: '14.5px',
+          fontWeight: '700',
+          color: '#cbd5e1',
+          letterSpacing: '-0.3px',
+          WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
+        }}>
+          {viewState === 'details' ? (
+            <span>{selectedGameName}</span>
+          ) : (
+            <span>{showHidden ? 'Hidden Games' : getSourceLabel(selectedSource)}</span>
+          )}
+        </div>
+
+        {/* Right Controls Container */}
+        <div style={{
+          marginLeft: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          WebkitAppRegion: 'no-drag'
+        }}>
+          {/* Search, Menu, and Window Controls */}
+          {renderRightControls()}
+        </div>
+      </div>
     </div>
   )
 }

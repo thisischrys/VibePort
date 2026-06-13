@@ -10,6 +10,6 @@ export function calculateDeleteAction(gameData, gameId) {
 }
 
 export function calculateUndoDeletions(existingGameIds, restoreIds) {
-  const restoreSet = new Set(restoreIds);
+  const restoreSet = new Set(restoreIds.map(item => typeof item === 'object' ? item.game_id : item));
   return existingGameIds.filter(id => !restoreSet.has(id));
 }
