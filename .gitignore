@@ -8,5 +8,7 @@ dist-electron/
 .aider-desk/
 .antigravitycli/
 scratch/
+scratch
+test-results/
 dist-app/
 legacy_chat_transcript.md
