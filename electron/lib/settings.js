@@ -12,7 +12,9 @@ const DEFAULTS = {
   scan_ea: true,
   scan_ubisoft: true,
   scan_bnet: true,
-  last_version_run: '0.0.0'
+  last_version_run: '0.0.0',
+  window_bounds: { width: 1280, height: 720 },
+  window_maximized: false
 }
 
 

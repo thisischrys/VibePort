@@ -108,9 +108,14 @@ function cleanOrphanCovers() {
 // ─── Window Creation ──────────────────────────────────────────────────────────
 function createWindow() {
   const iconPath = path.join(__dirname, '../build/icon_transparent.png')
+  const settings = getSettingsData()
+  const bounds = settings.window_bounds || { width: 1280, height: 720 }
+  
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 720,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     titleBarStyle: 'hidden',
     webPreferences: {
@@ -118,8 +123,13 @@ function createWindow() {
       sandbox: false
     },
     autoHideMenuBar: true,
-    show: true
+    show: !settings.window_maximized
   })
+
+  if (settings.window_maximized) {
+    mainWindow.maximize()
+    mainWindow.show()
+  }
 
   mainWindow.setMenu(null)
 
@@ -137,6 +147,21 @@ function createWindow() {
   mainWindow.on('unmaximize', () => {
     mainWindow.webContents.send(IPC_EVENTS.WINDOW_STATE_CHANGED, false)
   })
+
+  const saveGeometry = () => {
+    if (!mainWindow) return
+    const isMaximized = mainWindow.isMaximized()
+    const bounds = mainWindow.getBounds()
+    const update = { window_maximized: isMaximized }
+    if (!isMaximized) {
+      update.window_bounds = bounds
+    }
+    saveSettingsData(update)
+  }
+
+  mainWindow.on('resize', saveGeometry)
+  mainWindow.on('move', saveGeometry)
+  mainWindow.on('close', saveGeometry)
 
   mainWindow.on('closed', () => { mainWindow = null })
 }
@@ -1212,6 +1237,12 @@ app.whenReady().then(() => {
       console.error('Failed to trigger update check:', err)
       setTimeout(runAutoScan, 2000)
     })
+    // Check for updates every 30 minutes (ASAP updater)
+    setInterval(() => {
+      autoUpdater.checkForUpdates().catch((err) => {
+        console.error('[UPDATE] Background check failed:', err)
+      })
+    }, 30 * 60 * 1000)
   }
 
   app.on('activate', () => {
