@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && electron-builder --publish never",
+    "build": "vite build && electron-builder",
     "preview": "vite preview",
     "test:unit": "vitest run",
     "test:e2e": "playwright test"
