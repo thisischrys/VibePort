@@ -26,7 +26,7 @@ if (isTestMode) {
   }
 }
 
-import { gamesPath, coversDir, settingsPath, vibeportDir, STEAMGRIDDB_API_KEY } from './lib/paths.js'
+import { gamesPath, coversDir, settingsPath, vibeportDir, STEAMGRIDDB_API_KEY, RAWG_API_KEY } from './lib/paths.js'
 import { getSettingsData, saveSettingsData } from './lib/settings.js'
 import { loadAllGames, writeGame, removeCoverFiles, readGame, deleteGameFile, deleteAllGames, getAllGameIds } from './lib/gameStore.js'
 import { calculateDeleteAction, calculateUndoDeletions } from './lib/gameLogic.js'
@@ -761,6 +761,61 @@ ipcMain.handle(IPC_EVENTS.FETCH_STEAMGRIDDB_COVERS, async (event, gameId) => {
   }
 })
 
+ipcMain.handle(IPC_EVENTS.FETCH_RAWG_VIDEOS, async (event, gameName) => {
+  try {
+    if (!RAWG_API_KEY || RAWG_API_KEY === 'YOUR_RAWG_API_KEY') {
+      console.warn('RAWG API Key not configured.');
+      return { movies: [], youtube: [] };
+    }
+
+    // 1. Search game
+    const searchUrl = `https://api.rawg.io/api/games?search=${encodeURIComponent(gameName)}&key=${RAWG_API_KEY}`;
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) throw new Error(`RAWG search failed: ${searchRes.statusText}`);
+    const searchJson = await searchRes.json();
+    
+    if (!searchJson.results || searchJson.results.length === 0) {
+      return { movies: [], youtube: [] };
+    }
+    
+    const gameId = searchJson.results[0].id;
+
+    // 2. Fetch movies (trailers)
+    const moviesUrl = `https://api.rawg.io/api/games/${gameId}/movies?key=${RAWG_API_KEY}`;
+    const moviesRes = await fetch(moviesUrl);
+    let movies = [];
+    if (moviesRes.ok) {
+      const moviesJson = await moviesRes.json();
+      movies = (moviesJson.results || []).map(movie => ({
+        id: movie.id,
+        name: movie.name,
+        preview: movie.preview,
+        videoUrl: movie.data?.max || movie.data?.['480'] || ''
+      })).filter(movie => movie.videoUrl);
+    }
+
+    // 3. Fetch youtube videos (gameplay/reviews)
+    const youtubeUrl = `https://api.rawg.io/api/games/${gameId}/youtube?key=${RAWG_API_KEY}`;
+    const youtubeRes = await fetch(youtubeUrl);
+    let youtube = [];
+    if (youtubeRes.ok) {
+      const youtubeJson = await youtubeRes.json();
+      youtube = (youtubeJson.results || []).map(yt => ({
+        id: yt.id,
+        externalId: yt.external_id,
+        title: yt.title,
+        thumbnails: yt.thumbnails
+      })).filter(yt => yt.externalId);
+    }
+
+    return { movies, youtube };
+  } catch (e) {
+    console.error('Error fetching RAWG videos:', e);
+    return { movies: [], youtube: [] };
+  }
+})
+
+
 ipcMain.handle(IPC_EVENTS.DOWNLOAD_COVER_URL, async (event, gameId, imageUrl) => {
   if (!imageUrl) {
     removeCoverFiles(gameId)
@@ -934,6 +989,19 @@ ipcMain.handle(IPC_EVENTS.UNDO_IMPORT, async (event, gamesToRestore) => {
   }
 })
 
+ipcMain.handle(IPC_EVENTS.OPEN_EXTERNAL_URL, async (event, url) => {
+  try {
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      await shell.openExternal(url)
+      return true
+    }
+    return false
+  } catch (e) {
+    console.error('open-external-url error:', e)
+    return false
+  }
+})
+
 // ─── Auto Scan ────────────────────────────────────────────────────────────────
 function runAutoScan(enabledLaunchers = null) {
   const settings = getSettingsData()
@@ -1050,6 +1118,30 @@ app.whenReady().then(() => {
 
   // Initialize main window immediately
   createWindow()
+
+  // Check for What's New
+  const settingsData = getSettingsData()
+  const currentVersion = app.getVersion()
+  const lastVersion = settingsData.last_version_run || '0.0.0'
+  
+  if (currentVersion !== lastVersion) {
+    const isNewer = (a, b) => {
+      const pa = a.split('.').map(Number);
+      const pb = b.split('.').map(Number);
+      for (let i = 0; i < 3; i++) {
+        if (pa[i] > (pb[i] || 0)) return true;
+        if (pa[i] < (pb[i] || 0)) return false;
+      }
+      return false;
+    };
+    
+    if (isNewer(currentVersion, lastVersion) || lastVersion === '0.0.0') {
+      saveSettingsData({ last_version_run: currentVersion })
+      setTimeout(() => {
+        if (mainWindow) mainWindow.webContents.send(IPC_EVENTS.SHOW_WHATS_NEW, currentVersion)
+      }, 2000)
+    }
+  }
 
   // Configure AutoUpdater
   autoUpdater.autoDownload = true

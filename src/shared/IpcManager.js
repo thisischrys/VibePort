@@ -48,6 +48,10 @@ export class IpcManager {
     return window.api?.downloadCoverUrl(gameId, url) ?? Promise.resolve();
   }
 
+  static fetchGameVideos(gameName) {
+    return window.api?.fetchRawgVideos(gameName) ?? Promise.resolve({ movies: [], youtube: [] });
+  }
+
   static getAccentColor() {
     return window.api?.getAccentColor() ?? Promise.resolve('');
   }
@@ -95,6 +99,13 @@ export class IpcManager {
       return () => {};
     }
     return window.api.onShowToast(callback);
+  }
+
+  static onShowWhatsNew(callback) {
+    if (!window.api?.onShowWhatsNew) {
+      return () => {};
+    }
+    return window.api.onShowWhatsNew(callback);
   }
 
   static minimizeWindow() {
@@ -151,5 +162,9 @@ export class IpcManager {
       return () => {};
     }
     return window.api.onCoverDownloadStatus(callback);
+  }
+
+  static openExternalUrl(url) {
+    return window.api?.openExternalUrl(url) ?? Promise.resolve(false);
   }
 }

@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   searchSteamGridDB: (query) => ipcRenderer.invoke(IPC_EVENTS.SEARCH_STEAMGRIDDB, query),
   fetchSteamGridDBCovers: (gameId) => ipcRenderer.invoke(IPC_EVENTS.FETCH_STEAMGRIDDB_COVERS, gameId),
   downloadCoverUrl: (gameId, url) => ipcRenderer.invoke(IPC_EVENTS.DOWNLOAD_COVER_URL, gameId, url),
+  fetchRawgVideos: (gameName) => ipcRenderer.invoke(IPC_EVENTS.FETCH_RAWG_VIDEOS, gameName),
   getAccentColor: () => ipcRenderer.invoke(IPC_EVENTS.GET_ACCENT_COLOR),
   getAccentColorSync: () => ipcRenderer.sendSync(IPC_EVENTS.GET_ACCENT_COLOR_SYNC),
   onAccentColorChanged: (callback) => {
@@ -35,6 +36,11 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (event, message, type) => callback(message, type)
     ipcRenderer.on(IPC_EVENTS.SHOW_TOAST, listener)
     return () => ipcRenderer.removeListener(IPC_EVENTS.SHOW_TOAST, listener)
+  },
+  onShowWhatsNew: (callback) => {
+    const listener = (event, version) => callback(version)
+    ipcRenderer.on(IPC_EVENTS.SHOW_WHATS_NEW, listener)
+    return () => ipcRenderer.removeListener(IPC_EVENTS.SHOW_WHATS_NEW, listener)
   },
   minimizeWindow: () => ipcRenderer.send(IPC_EVENTS.WINDOW_MINIMIZE),
   maximizeWindow: () => ipcRenderer.send(IPC_EVENTS.WINDOW_MAXIMIZE),
@@ -62,5 +68,6 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (event, data) => callback(data)
     ipcRenderer.on(IPC_EVENTS.COVER_DOWNLOAD_STATUS, listener)
     return () => ipcRenderer.removeListener(IPC_EVENTS.COVER_DOWNLOAD_STATUS, listener)
-  }
+  },
+  openExternalUrl: (url) => ipcRenderer.invoke(IPC_EVENTS.OPEN_EXTERNAL_URL, url)
 })

@@ -4,7 +4,7 @@ import {
   Play, Search, LayoutGrid, CheckCircle2, AlertCircle,
   Plus, EyeOff, Edit3, Info, X, Check, Loader2,
   Menu, ChevronRight, ChevronLeft,
-  FolderPlus, PlusSquare, MoreVertical, Video, Trash2, Eye
+  FolderPlus, PlusSquare, MoreVertical, Trash2, Eye
 } from 'lucide-react'
 
 import { styles } from './theme/styles.js'
@@ -16,6 +16,7 @@ import EditGameModal from './components/modals/EditGameModal.jsx'
 import AboutModal from './components/modals/AboutModal.jsx'
 import { PreferencesModal } from './components/modals/PreferencesModal.jsx'
 import { ShortcutsModal } from './components/modals/ShortcutsModal.jsx'
+import { WhatsNewModal } from './components/WhatsNewModal.jsx'
 import packageJson from '../package.json'
 
 import { TitleBar } from './components/TitleBar.jsx'
@@ -190,6 +191,18 @@ const GLOBAL_CSS = `
     .game-title {
       font-size: 9.5px !important;
     }
+  }
+
+  .video-card:hover {
+    transform: scale(1.03);
+    border-color: rgba(255, 255, 255, 0.25) !important;
+  }
+  .video-card:hover .video-card-overlay {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+  }
+  .video-card:hover .play-icon {
+    transform: scale(1.1);
+    background-color: rgba(255, 255, 255, 0.35) !important;
   }
 `
 
@@ -586,6 +599,8 @@ const App = () => {
   }
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [isStandaloneShortcutsOpen, setIsStandaloneShortcutsOpen] = useState(false)
+  const [showWhatsNewModal, setShowWhatsNewModal] = useState(false)
+  const [whatsNewVersion, setWhatsNewVersion] = useState('')
   const lastDeletedGameRef = React.useRef(null)
   const lastDeletedGamesListRef = React.useRef(null)
   const lastImportedGamesListRef = React.useRef(null)
@@ -620,7 +635,10 @@ const App = () => {
 
   const [viewState, setViewState] = useState('grid') // 'grid' | 'details'
   const [selectedGame, setSelectedGame] = useState(null)
-  const [detailsDropdownOpen, setDetailsDropdownOpen] = useState(null) // 'search' | 'watch' | null
+  const [detailsDropdownOpen, setDetailsDropdownOpen] = useState(false)
+  const [rawgVideos, setRawgVideos] = useState({ movies: [], youtube: [] })
+  const [loadingVideos, setLoadingVideos] = useState(false)
+  const [activeVideo, setActiveVideo] = useState(null) // { type: 'movie'|'youtube', url|externalId, title }
   const [detailsGradient, setDetailsGradient] = useState('')
   const lastNavActionRef = useRef(null)
   const prevShowHiddenRef = useRef(showHidden)
@@ -681,20 +699,61 @@ const App = () => {
     }
   }, [selectedGame])
 
+  useEffect(() => {
+    if (!selectedGame) {
+      setRawgVideos({ movies: [], youtube: [] })
+      setLoadingVideos(false)
+      return
+    }
+
+    let active = true
+    setLoadingVideos(true)
+    setRawgVideos({ movies: [], youtube: [] })
+
+    IpcManager.fetchGameVideos(selectedGame.name)
+      .then(res => {
+        if (!active) return
+        setRawgVideos(res || { movies: [], youtube: [] })
+      })
+      .catch(err => {
+        console.error('Failed to fetch game videos:', err)
+      })
+      .finally(() => {
+        if (active) setLoadingVideos(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedGame])
+
   const openDetailsView = useCallback((game, e) => {
     if (e?.stopPropagation) e.stopPropagation()
     setSelectedGame(game)
     setViewState('details')
-    setDetailsDropdownOpen(null)
+    setDetailsDropdownOpen(false)
   }, [])
 
   const closeDetailsView = useCallback(() => {
     setViewState('grid')
-    setDetailsDropdownOpen(null)
+    setDetailsDropdownOpen(false)
     if (selectedGame) {
       lastNavActionRef.current = { type: 'details', game: selectedGame }
     }
     setTimeout(() => setSelectedGame(null), 300)
+  }, [selectedGame])
+
+  const handleSearchOn = useCallback((baseUrl) => {
+    if (selectedGame?.name) {
+      // Clean query: replace dashes, colons, and other punctuation with spaces to avoid crash/no-result issues
+      const sanitizedQuery = selectedGame.name
+        .replace(/[-:_!@#$%^&*()_+={}\[\]|\\;'"<>,.?/~`]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      const url = `${baseUrl}${encodeURIComponent(sanitizedQuery)}`
+      IpcManager.openExternalUrl(url)
+      setDetailsDropdownOpen(false)
+    }
   }, [selectedGame])
 
   // Track hidden transition
@@ -1055,6 +1114,10 @@ const App = () => {
     const subs = [
       IpcManager.onGamesUpdated(fetchGames),
       IpcManager.onShowToast((d) => { if (d?.message) triggerToast(d.message, d.type) }),
+      IpcManager.onShowWhatsNew((version) => {
+        setWhatsNewVersion(version)
+        setShowWhatsNewModal(true)
+      }),
       IpcManager.onScanProgress((progress) => {
         setScanProgress(progress)
         // Use the 'active' flag sent from the backend (based on activeScanCount)
@@ -1662,7 +1725,7 @@ const App = () => {
         pointerEvents: viewState === 'details' ? 'auto' : 'none',
         zIndex: 900
       }}
-      onClick={() => setDetailsDropdownOpen(null)}
+      onClick={() => setDetailsDropdownOpen(false)}
     >
       {selectedGame && (
         <>
@@ -1783,49 +1846,327 @@ const App = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      setDetailsDropdownOpen(detailsDropdownOpen === 'search' ? null : 'search')
+                      setDetailsDropdownOpen(!detailsDropdownOpen)
                     }}
                     className="details-action-btn"
-                    style={styles.detailsIconBtn}
+                    style={{
+                      ...styles.detailsIconBtn,
+                      backgroundColor: detailsDropdownOpen ? '#3a3a3c' : 'rgba(255, 255, 255, 0.05)',
+                    }}
                     title="Search"
                   >
                     <Search size={18} />
                   </button>
-                  {detailsDropdownOpen === 'search' && (
-                    <div style={styles.detailsDropdownMenu}>
-                      <div style={styles.detailsDropdownHeader}>Search on...</div>
-                      <div style={styles.detailsDropdownItem} onClick={() => console.log('Search IGDB')}>IGDB</div>
-                      <div style={styles.detailsDropdownItem} onClick={() => console.log('Search SteamGridDB')}>SteamGridDB</div>
-                      <div style={styles.detailsDropdownItem} onClick={() => console.log('Search HowLongToBeat')}>HowLongToBeat</div>
+                  {detailsDropdownOpen && (
+                    <div
+                      className="gtk-popover-container"
+                      style={{
+                        ...styles.popover,
+                        right: '-10px',
+                        top: '44px',
+                        width: '200px'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div
+                        style={{
+                          ...styles.popoverArrow,
+                          right: '24px'
+                        }}
+                      />
+                      <div style={styles.popoverContent}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={styles.detailsDropdownHeader}>Search on...</div>
+                          <div
+                            className="gtk-menu-item"
+                            style={styles.popoverItem}
+                            onClick={() => handleSearchOn('https://www.igdb.com/search?type=1&q=')}
+                          >
+                            IGDB
+                          </div>
+                          <div
+                            className="gtk-menu-item"
+                            style={styles.popoverItem}
+                            onClick={() => handleSearchOn('https://www.steamgriddb.com/search/grids?term=')}
+                          >
+                            SteamGridDB
+                          </div>
+                          <div
+                            className="gtk-menu-item"
+                            style={styles.popoverItem}
+                            onClick={() => handleSearchOn('https://www.pcgamingwiki.com/w/index.php?search=')}
+                          >
+                            PCGamingWiki
+                          </div>
+                          <div
+                            className="gtk-menu-item"
+                            style={styles.popoverItem}
+                            onClick={() => handleSearchOn('https://howlongtobeat.com/?q=')}
+                          >
+                            HowLongToBeat
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Watch Dropdown */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDetailsDropdownOpen(detailsDropdownOpen === 'watch' ? null : 'watch')
-                    }}
-                    className="details-action-btn"
-                    style={styles.detailsIconBtn}
-                    title="Watch"
-                  >
-                    <Video size={18} />
-                  </button>
-                  {detailsDropdownOpen === 'watch' && (
-                    <div style={styles.detailsDropdownMenu}>
-                      <div style={styles.detailsDropdownHeader}>Watch...</div>
-                      <div style={styles.detailsDropdownItem} onClick={() => console.log('Watch Trailer')}>Trailer</div>
-                      <div style={styles.detailsDropdownItem} onClick={() => console.log('Watch Gameplay')}>Gameplay</div>
-                    </div>
-                  )}
-                </div>
+                {/* Gameplay & Trailer Videos Section */}
+                {(loadingVideos || rawgVideos.movies.length > 0 || rawgVideos.youtube.length > 0) && (
+                  <div style={{ marginTop: '20px' }}>
+                    <h3 style={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      color: '#94a3b8',
+                      marginBottom: '10px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>Gameplay & Trailers</h3>
+                    
+                    {loadingVideos ? (
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        {[1, 2].map(i => (
+                          <div 
+                            key={i} 
+                            style={{
+                              width: '180px',
+                              height: '101px',
+                              borderRadius: '8px',
+                              backgroundColor: 'rgba(255,255,255,0.03)',
+                              border: '1px solid rgba(255,255,255,0.05)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>Loading...</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="custom-scrollbar" style={{
+                        display: 'flex',
+                        gap: '12px',
+                        overflowX: 'auto',
+                        paddingBottom: '8px'
+                      }}>
+                        {/* Movies (Trailers) */}
+                        {rawgVideos.movies.map(movie => (
+                          <div
+                            key={`movie-${movie.id}`}
+                            className="video-card"
+                            onClick={() => setActiveVideo({ type: 'movie', url: movie.videoUrl, title: movie.name })}
+                            style={{
+                              flexShrink: 0,
+                              width: '180px',
+                              height: '101px',
+                              borderRadius: '8px',
+                              backgroundImage: `url(${movie.preview})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              position: 'relative',
+                              cursor: 'pointer',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              overflow: 'hidden',
+                              boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                              transition: 'transform 0.2s, border-color 0.2s'
+                            }}
+                          >
+                            <div className="video-card-overlay" style={{
+                              position: 'absolute',
+                              top: 0, left: 0, right: 0, bottom: 0,
+                              backgroundColor: 'rgba(0,0,0,0.2)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s'
+                            }}>
+                              <div className="play-icon" style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backdropFilter: 'blur(4px)',
+                                transition: 'transform 0.2s, background-color 0.2s'
+                              }}>
+                                <Play size={14} fill="#ffffff" color="#ffffff" style={{ marginLeft: '2px' }} />
+                              </div>
+                            </div>
+                            <div style={{
+                              position: 'absolute',
+                              bottom: 0, left: 0, right: 0,
+                              padding: '6px 8px',
+                              background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              color: '#f8fafc',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {movie.name}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* YouTube Gameplay Videos */}
+                        {rawgVideos.youtube.map(yt => (
+                          <div
+                            key={`yt-${yt.id}`}
+                            className="video-card"
+                            onClick={() => setActiveVideo({ type: 'youtube', id: yt.externalId, title: yt.title })}
+                            style={{
+                              flexShrink: 0,
+                              width: '180px',
+                              height: '101px',
+                              borderRadius: '8px',
+                              backgroundImage: `url(${yt.thumbnails?.medium?.url || yt.thumbnails?.high?.url || ''})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              position: 'relative',
+                              cursor: 'pointer',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              overflow: 'hidden',
+                              boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                              transition: 'transform 0.2s, border-color 0.2s'
+                            }}
+                          >
+                            <div className="video-card-overlay" style={{
+                              position: 'absolute',
+                              top: 0, left: 0, right: 0, bottom: 0,
+                              backgroundColor: 'rgba(0,0,0,0.2)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s'
+                            }}>
+                              <div className="play-icon" style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backdropFilter: 'blur(4px)',
+                                transition: 'transform 0.2s, background-color 0.2s'
+                              }}>
+                                <Play size={14} fill="#ffffff" color="#ffffff" style={{ marginLeft: '2px' }} />
+                              </div>
+                            </div>
+                            <div style={{
+                              position: 'absolute',
+                              bottom: 0, left: 0, right: 0,
+                              padding: '6px 8px',
+                              background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              color: '#f8fafc',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {yt.title}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               </div>
             </div>
           </div>
+
+          {/* Video Player Lightbox Overlay */}
+          {activeVideo && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                backdropFilter: 'blur(16px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+              }}
+              onClick={() => setActiveVideo(null)}
+            >
+              <button
+                onClick={() => setActiveVideo(null)}
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  right: '20px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  transition: 'background 0.2s',
+                }}
+                className="glass-btn"
+              >
+                <X size={20} />
+              </button>
+
+              <div style={{
+                marginBottom: '20px',
+                color: '#f8fafc',
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: '16px',
+                fontWeight: '600',
+                textAlign: 'center',
+                maxWidth: '80%',
+                textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+              }}>
+                {activeVideo.title}
+              </div>
+
+              <div 
+                style={{
+                  width: '80%',
+                  maxWidth: '960px',
+                  aspectRatio: '16/9',
+                  backgroundColor: '#000',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {activeVideo.type === 'movie' ? (
+                  <video 
+                    src={activeVideo.url} 
+                    controls 
+                    autoPlay 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${activeVideo.id}?autoplay=1`}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -1920,6 +2261,13 @@ const App = () => {
           {showShortcutsModal && (
             <ShortcutsModal
               onClose={() => setShowShortcutsModal(false)}
+            />
+          )}
+          {showWhatsNewModal && (
+            <WhatsNewModal
+              isOpen={showWhatsNewModal}
+              onClose={() => setShowWhatsNewModal(false)}
+              version={whatsNewVersion}
             />
           )}
           {isScanning && (

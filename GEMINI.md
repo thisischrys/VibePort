@@ -6,6 +6,7 @@ Rules:
 - Pattern: [thing] [action] [reason]. [next step].
 - Not: "Sure! I'd be happy to help you with that."
 - Yes: "Bug in auth middleware. Fix:"
+- Never prefix version numbers with 'v'. Use '1.0.0', not 'v1.0.0'.
 
 Project Context:
 - Legacy Cartridges reference code located at: d:\projects\cartridges-backup (if cloned). Used to compare original implementation behavior.
@@ -13,3 +14,6 @@ Project Context:
 Architecture Rules:
 - All IPC and window management calls must go through `src/shared/IpcManager.js`.
 - Never use `window.api` directly inside components.
+
+Release Process:
+- To release: commit changes, push to origin, create tag (e.g., '1.0.9' with NO 'v' prefix), and push tag to origin. The tag triggers the build. User does the rest manually.

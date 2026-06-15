@@ -11,7 +11,8 @@ const DEFAULTS = {
   scan_epic: true,
   scan_ea: true,
   scan_ubisoft: true,
-  scan_bnet: true
+  scan_bnet: true,
+  last_version_run: '0.0.0'
 }
 
 
