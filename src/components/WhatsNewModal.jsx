@@ -11,13 +11,27 @@ export const WhatsNewModal = ({ isOpen, onClose, version }) => {
     if (isOpen) {
       fetch('./changelog.md')
         .then(res => res.text())
-        .then(text => setContent(text))
+        .then(text => {
+          const versionHeader = `# VibePort ${version}`
+          const startIndex = text.indexOf(versionHeader)
+          if (startIndex === -1) {
+            setContent(text) // Fallback to full changelog if version not found
+            return
+          }
+          
+          let contentStr = text.slice(startIndex + versionHeader.length).trim()
+          const nextHeaderIndex = contentStr.indexOf('\n# VibePort ')
+          if (nextHeaderIndex !== -1) {
+            contentStr = contentStr.slice(0, nextHeaderIndex).trim()
+          }
+          setContent(contentStr)
+        })
         .catch(err => {
           console.error('Failed to load changelog:', err)
           setContent('Failed to load release notes.')
         })
     }
-  }, [isOpen])
+  }, [isOpen, version])
 
   return (
     <AnimatePresence>

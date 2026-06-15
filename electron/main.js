@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences, session } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -1089,6 +1089,15 @@ function runAutoScan(enabledLaunchers = null) {
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   if (!gotTheLock) return
+
+  // Resolve YouTube/YouTube-nocookie embed configuration blocks (Error 150/153)
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*'] },
+    (details, callback) => {
+      details.requestHeaders['Referer'] = 'https://www.youtube.com'
+      callback({ requestHeaders: details.requestHeaders })
+    }
+  )
 
   // Clean up any orphan cover files at startup
 

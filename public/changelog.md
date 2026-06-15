@@ -1,4 +1,4 @@
-# VibePort 1.0.99
+# VibePort 1.1.0
 
 ### 🎉 New Features
 - **Window Memory:** App now remembers your window size, position, and maximized state between sessions.
