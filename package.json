@@ -43,7 +43,7 @@
       "provider": "github",
       "owner": "thisischrys",
       "repo": "VibePort",
-      "tagNamePrefix": ""
+      "vPrefixedTagName": false
     },
     "directories": {
       "output": "dist-app"
