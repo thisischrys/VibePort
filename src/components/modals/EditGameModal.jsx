@@ -3,32 +3,8 @@ import { motion } from 'framer-motion'
 import { Edit3, EyeOff, Trash2, X, Globe, Search, Loader } from 'lucide-react'
 import { styles } from '../../theme/styles.js'
 import { IpcManager } from '../../shared/IpcManager.js'
-
-const normalizeGameName = (name) => {
-  if (!name) return ''
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .map(word => {
-      switch (word) {
-        case 'i': return '1'
-        case 'ii': return '2'
-        case 'iii': return '3'
-        case 'iv': return '4'
-        case 'v': return '5'
-        case 'vi': return '6'
-        case 'vii': return '7'
-        case 'viii': return '8'
-        case 'ix': return '9'
-        case 'x': return '10'
-        default: return word
-      }
-    })
-    .join(' ')
-}
+import { normalizeGameName, hexToRgb } from '../../shared/utils.js'
+import SteamGridDBSearch from '../SteamGridDBSearch.jsx'
 
 const findBestSgdbMatch = (searchData, targetName) => {
   if (!searchData || searchData.length === 0) return null
@@ -62,17 +38,6 @@ const EditGameModal = ({
   const [selectedGame, setSelectedGame] = useState(null)
   const [covers, setCovers] = useState([])
   const [coverTypeFilter, setCoverTypeFilter] = useState('animated')
-
-  const hexToRgb = (hex) => {
-    try {
-      const r = parseInt(hex.slice(0, 2), 16)
-      const g = parseInt(hex.slice(2, 4), 16)
-      const b = parseInt(hex.slice(4, 6), 16)
-      return `${r}, ${g}, ${b}`
-    } catch {
-      return '139, 92, 246'
-    }
-  }
 
   // Auto-search logic when browser toggled
   const handleToggleSgdb = () => {
@@ -140,6 +105,9 @@ const EditGameModal = ({
       onClick={onClose}
     >
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit Game Details"
         initial={{ scale: 0.95, y: 15 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 15 }}
         style={{
           ...styles.modalContentLarge,
@@ -400,255 +368,22 @@ const EditGameModal = ({
                 </div>
               </div>
             </div>
-
-            {/* Right Column: SteamGridDB Cover Art Browser */}
             {showSgdb && (
-              <div style={{
-                flex: 1,
-                padding: '16px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                minWidth: '400px',
-                boxSizing: 'border-box',
-                backgroundColor: 'rgba(0, 0, 0, 0.12)',
-                borderLeft: '1px solid rgba(255, 255, 255, 0.03)',
-                height: '100%',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  fontFamily: "'Outfit', sans-serif",
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  color: '#f8fafc',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <Globe size={15} color={`#${accentHex}`} />
-                  SteamGridDB Cover Browser
-                </div>
-
-                {/* Autocomplete Search input */}
-                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    style={{ flex: 1, fontSize: '12.5px' }}
-                    value={sgdbQuery}
-                    onChange={(e) => setSgdbQuery(e.target.value)}
-                    placeholder="Search game covers..."
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSearchOnline(e) }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSearchOnline}
-                    style={{
-                      padding: '0 14px',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      backgroundColor: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#f8fafc',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    {searching ? <Loader size={12} className="spin" /> : <Search size={12} />}
-                    Search
-                  </button>
-                </div>
-
-                {/* Match Autocomplete Games Dropdown List */}
-                {sgdbResults.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ fontSize: '10.5px', fontWeight: '700', color: '#8e8e93', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Matching Games
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '3px',
-                      maxHeight: '100px',
-                      overflowY: 'auto',
-                      backgroundColor: 'rgba(0,0,0,0.18)',
-                      borderRadius: '8px',
-                      padding: '4px',
-                      border: '1px solid rgba(255,255,255,0.04)'
-                    }}>
-                      {sgdbResults.map(r => (
-                        <div
-                          key={r.id}
-                          onClick={() => handleSelectSgdbGame(r)}
-                          style={{
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            fontWeight: selectedGame?.id === r.id ? '700' : '500',
-                            backgroundColor: selectedGame?.id === r.id ? `rgba(${hexToRgb(accentHex)}, 0.15)` : 'transparent',
-                            color: selectedGame?.id === r.id ? `#${accentHex}` : '#cbd5e1',
-                            transition: 'all 0.12s'
-                          }}
-                        >
-                          {r.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                                 {/* Cover Type Toggle Buttons */}
-                  {covers.length > 0 && !loadingCovers && (() => {
-                    const animatedCount = covers.filter(c => c.type === 'animated').length
-                    const staticCount = covers.filter(c => c.type === 'static').length
-                    const hasAnimated = animatedCount > 0
-                    const hasStatic = staticCount > 0
-                    return (
-                      <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          disabled={!hasAnimated}
-                          onClick={() => setCoverTypeFilter('animated')}
-                          style={{
-                            flex: 1,
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '11.5px',
-                            fontWeight: '700',
-                            cursor: hasAnimated ? 'pointer' : 'not-allowed',
-                            backgroundColor: !hasAnimated
-                              ? 'rgba(255, 255, 255, 0.02)'
-                              : coverTypeFilter === 'animated'
-                                ? `#${accentHex}`
-                                : 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid',
-                            borderColor: !hasAnimated
-                              ? 'rgba(255, 255, 255, 0.04)'
-                              : coverTypeFilter === 'animated'
-                                ? `#${accentHex}`
-                                : 'rgba(255, 255, 255, 0.08)',
-                            color: !hasAnimated
-                              ? 'rgba(255, 255, 255, 0.2)'
-                              : coverTypeFilter === 'animated'
-                                ? '#ffffff'
-                                : '#cbd5e1',
-                            opacity: hasAnimated ? 1 : 0.4,
-                            boxShadow: (hasAnimated && coverTypeFilter === 'animated')
-                              ? `0 0 10px rgba(${hexToRgb(accentHex)}, 0.25)`
-                              : 'none',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          Animated ({animatedCount})
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!hasStatic}
-                          onClick={() => setCoverTypeFilter('static')}
-                          style={{
-                            flex: 1,
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '11.5px',
-                            fontWeight: '700',
-                            cursor: hasStatic ? 'pointer' : 'not-allowed',
-                            backgroundColor: !hasStatic
-                              ? 'rgba(255, 255, 255, 0.02)'
-                              : coverTypeFilter === 'static'
-                                ? `#${accentHex}`
-                                : 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid',
-                            borderColor: !hasStatic
-                              ? 'rgba(255, 255, 255, 0.04)'
-                              : coverTypeFilter === 'static'
-                                ? `#${accentHex}`
-                                : 'rgba(255, 255, 255, 0.08)',
-                            color: !hasStatic
-                              ? 'rgba(255, 255, 255, 0.2)'
-                              : coverTypeFilter === 'static'
-                                ? '#ffffff'
-                                : '#cbd5e1',
-                            opacity: hasStatic ? 1 : 0.4,
-                            boxShadow: (hasStatic && coverTypeFilter === 'static')
-                              ? `0 0 10px rgba(${hexToRgb(accentHex)}, 0.25)`
-                              : 'none',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          Static ({staticCount})
-                        </button>
-                      </div>
-                    )
-                  })()}
-
-                  {/* Scrollable Covers Grid */}
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                                  {(() => {
-                    const animated = covers.filter(c => c.type === 'animated')
-                    const statics = covers.filter(c => c.type === 'static')
-                    
-                    const displayedCovers = coverTypeFilter === 'animated' ? animated : statics
-
-                    return (
-                      <>
-                        {loadingCovers ? (
-                          <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: '#8e8e93', fontSize: '12.5px', gap: '8px' }}>
-                            <Loader size={16} className="spin" />
-                            Loading covers from SteamGridDB...
-                          </div>
-                        ) : displayedCovers.length > 0 ? (
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(3, 1fr)',
-                            gap: '10px',
-                            paddingBottom: '16px'
-                          }}>
-                            {displayedCovers.map(c => {
-                              const isSelected = formCoverUrl === c.url
-                              return (
-                                <div
-                                  key={c.id}
-                                  onClick={() => setFormCoverUrl(c.url)}
-                                  style={{
-                                    position: 'relative',
-                                    aspectRatio: '2/3',
-                                    borderRadius: '8px',
-                                    overflow: 'hidden',
-                                    cursor: 'pointer',
-                                    border: isSelected ? `2px solid #${accentHex}` : '1px solid rgba(255,255,255,0.06)',
-                                    boxShadow: isSelected ? `0 0 10px rgba(${hexToRgb(accentHex)}, 0.4)` : '0 4px 12px rgba(0,0,0,0.2)',
-                                    transform: isSelected ? 'scale(0.96)' : 'none',
-                                    transition: 'transform 0.15s, border-color 0.15s'
-                                  }}
-                                >
-                                  <img
-                                    src={c.thumb}
-                                    alt=""
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                    onError={(e) => {
-                                      if (e.target.src !== c.url) {
-                                        e.target.src = c.url
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              )
-                            })}
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '12px' }}>
-                            {selectedGame ? 'No covers found for this game.' : 'Search and select a game to view covers.'}
-                          </div>
-                        )}
-                      </>
-                    )
-                  })()}
-                </div>
-
-              </div>
+              <SteamGridDBSearch
+                accentHex={accentHex}
+                sgdbSearchQuery={sgdbQuery}
+                setSgdbSearchQuery={setSgdbQuery}
+                sgdbGames={sgdbResults}
+                sgdbSearching={searching}
+                selectedSgdbGame={selectedGame}
+                setSelectedSgdbGame={setSelectedGame}
+                sgdbCovers={covers}
+                sgdbCoversLoading={loadingCovers}
+                downloadingCoverId={null}
+                onSearch={handleSearchOnline}
+                onSelectGame={handleSelectSgdbGame}
+                onDownloadCover={(url) => setFormCoverUrl(url)}
+              />
             )}
 
           </div>

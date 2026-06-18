@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { styles } from '../../theme/styles.js'
 import { IpcManager } from '../../shared/IpcManager.js'
+import { hexToRgb } from '../../shared/utils.js'
 
 const AddGameModal = ({
   accentHex,
@@ -9,17 +10,6 @@ const AddGameModal = ({
   onSubmit, onClose,
 }) => {
   const hasInputs = formName.trim() !== '' && formExecutable.trim() !== ''
-
-  const hexToRgb = (hex) => {
-    try {
-      const r = parseInt(hex.slice(0, 2), 16)
-      const g = parseInt(hex.slice(2, 4), 16)
-      const b = parseInt(hex.slice(4, 6), 16)
-      return `${r}, ${g}, ${b}`
-    } catch {
-      return '139, 92, 246'
-    }
-  }
 
   return (
     <motion.div
@@ -31,6 +21,9 @@ const AddGameModal = ({
       onClick={onClose}
     >
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add Game"
         initial={{ scale: 0.95, y: 15 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 15 }}
         style={{
           ...styles.modalContentLarge,

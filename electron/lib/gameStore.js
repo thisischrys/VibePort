@@ -1,32 +1,8 @@
 import fs from 'node:fs'
+import { promises as fsPromises } from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import sharp from 'sharp'
 import { gamesPath, coversDir } from './paths.js'
-
-// Helper: Checks if a buffer represents an Animated PNG (APNG)
-function isApng(buffer) {
-  if (buffer.length < 8) return false
-  const pngSig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
-  for (let i = 0; i < 8; i++) {
-    if (buffer[i] !== pngSig[i]) return false
-  }
-
-  let pos = 8
-  while (pos < buffer.length - 12) {
-    const length = buffer.readUInt32BE(pos)
-    const type = buffer.toString('ascii', pos + 4, pos + 8)
-    if (type === 'acTL') {
-      return true
-    }
-    if (type === 'IDAT' || type === 'IEND') {
-      break
-    }
-    pos += 12 + length
-    if (length <= 0) break
-  }
-  return false
-}
 
 // ─── GIF Repair ──────────────────────────────────────────────────────────────
 // Attempts to repair a corrupt GIF in-place using Python + Pillow.
@@ -75,7 +51,7 @@ export async function resolveCoverUrl(gameId) {
 
   const supportedExts = ['.gif', '.webp', '.png', '.jpg', '.jpeg']
   try {
-    const coverFiles = fs.readdirSync(coversDir)
+    const coverFiles = await fsPromises.readdir(coversDir)
     const coverFile = coverFiles.find(
       f => f.startsWith(`${gameId}.`) && supportedExts.includes(path.extname(f).toLowerCase())
     )
@@ -83,8 +59,8 @@ export async function resolveCoverUrl(gameId) {
     if (!coverFile) return null
 
     const fullPath = path.join(coversDir, coverFile)
-    const mtime = fs.statSync(fullPath).mtimeMs
-    return `media://${fullPath.replace(/\\/g, '/')}?t=${mtime}`
+    const stats = await fsPromises.stat(fullPath)
+    return `media://${fullPath.replace(/\\/g, '/')}?t=${stats.mtimeMs}`
   } catch (e) {
     return null
   }
@@ -96,21 +72,21 @@ export async function loadAllGames() {
   if (!fs.existsSync(gamesPath)) return []
 
   try {
-    const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
+    const files = (await fsPromises.readdir(gamesPath)).filter(f => f.endsWith('.json'))
     
     // Build a map of gameId -> coverUrl in a single pass of the covers directory
     const coverMap = {}
     if (fs.existsSync(coversDir)) {
       const supportedExts = ['.gif', '.webp', '.png', '.jpg', '.jpeg']
       try {
-        const coverFiles = fs.readdirSync(coversDir)
+        const coverFiles = await fsPromises.readdir(coversDir)
         for (const f of coverFiles) {
           const ext = path.extname(f).toLowerCase()
           if (supportedExts.includes(ext)) {
             const gameId = path.basename(f, ext)
             const fullPath = path.join(coversDir, f)
-            const mtime = fs.statSync(fullPath).mtimeMs
-            coverMap[gameId] = `media://${fullPath.replace(/\\/g, '/')}?t=${mtime}`
+            const stats = await fsPromises.stat(fullPath)
+            coverMap[gameId] = `media://${fullPath.replace(/\\/g, '/')}?t=${stats.mtimeMs}`
           }
         }
       } catch (e) {
@@ -120,7 +96,7 @@ export async function loadAllGames() {
 
     const gamePromises = files.map(async (file) => {
       try {
-        const content = fs.readFileSync(path.join(gamesPath, file), 'utf8')
+        const content = await fsPromises.readFile(path.join(gamesPath, file), 'utf8')
         const data = JSON.parse(content)
 
         // Normalize source based on game_id prefix to fix legacy misclassifications
@@ -144,53 +120,73 @@ export async function loadAllGames() {
   }
 }
 
+export function sanitizeGameId(gameId) {
+  if (typeof gameId !== 'string') throw new Error('Invalid gameId type')
+  const clean = path.basename(gameId)
+  if (clean !== gameId || gameId.includes('..') || gameId.includes('/') || gameId.includes('\\')) {
+    throw new Error('Path traversal detected in gameId')
+  }
+  return gameId
+}
+
 // ─── Write Game ───────────────────────────────────────────────────────────────
-export function writeGame(gameId, data) {
-  if (!fs.existsSync(gamesPath)) fs.mkdirSync(gamesPath, { recursive: true })
+export async function writeGame(gameId, data) {
+  sanitizeGameId(gameId)
+  if (!fs.existsSync(gamesPath)) await fsPromises.mkdir(gamesPath, { recursive: true })
   const gameFilePath = path.join(gamesPath, `${gameId}.json`)
-  fs.writeFileSync(gameFilePath, JSON.stringify(data, null, 4), 'utf8')
+  await fsPromises.writeFile(gameFilePath, JSON.stringify(data, null, 4), 'utf8')
 }
 
 // ─── Remove Cover Files ───────────────────────────────────────────────────────
-export function removeCoverFiles(gameId) {
+export async function removeCoverFiles(gameId) {
+  sanitizeGameId(gameId)
   if (!fs.existsSync(coversDir)) return
-  const coverFiles = fs.readdirSync(coversDir)
-  for (const f of coverFiles) {
-    if (f.startsWith(`${gameId}.`)) {
-      try { fs.unlinkSync(path.join(coversDir, f)) } catch (e) { /* ignore */ }
+  try {
+    const coverFiles = await fsPromises.readdir(coversDir)
+    for (const f of coverFiles) {
+      if (f.startsWith(`${gameId}.`)) {
+        try { await fsPromises.unlink(path.join(coversDir, f)) } catch (e) { /* ignore */ }
+      }
     }
-  }
+  } catch (e) { /* ignore readdir errors */ }
 }
 
 // ─── IO Helpers for Decoupling ────────────────────────────────────────────────
-export function readGame(gameId) {
+export async function readGame(gameId) {
+  sanitizeGameId(gameId)
   const gameFilePath = path.join(gamesPath, `${gameId}.json`)
   if (!fs.existsSync(gameFilePath)) return null
   try {
-    return JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
+    return JSON.parse(await fsPromises.readFile(gameFilePath, 'utf8'))
   } catch (e) {
     return null
   }
 }
 
-export function deleteGameFile(gameId) {
+export async function deleteGameFile(gameId) {
+  sanitizeGameId(gameId)
   const gameFilePath = path.join(gamesPath, `${gameId}.json`)
   if (fs.existsSync(gameFilePath)) {
-    try { fs.unlinkSync(gameFilePath) } catch (e) { /* ignore */ }
+    try { await fsPromises.unlink(gameFilePath) } catch (e) { /* ignore */ }
   }
 }
 
-export function getAllGameIds() {
+export async function getAllGameIds() {
   if (!fs.existsSync(gamesPath)) return []
-  return fs.readdirSync(gamesPath)
-    .filter(f => f.endsWith('.json'))
-    .map(f => f.replace('.json', ''))
+  try {
+    const files = await fsPromises.readdir(gamesPath)
+    return files.filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''))
+  } catch (e) {
+    return []
+  }
 }
 
-export function deleteAllGames() {
+export async function deleteAllGames() {
   if (!fs.existsSync(gamesPath)) return
-  const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
-  for (const file of files) {
-    try { fs.unlinkSync(path.join(gamesPath, file)) } catch (e) { /* ignore */ }
-  }
+  try {
+    const files = (await fsPromises.readdir(gamesPath)).filter(f => f.endsWith('.json'))
+    for (const file of files) {
+      try { await fsPromises.unlink(path.join(gamesPath, file)) } catch (e) { /* ignore */ }
+    }
+  } catch (e) { /* ignore readdir errors */ }
 }

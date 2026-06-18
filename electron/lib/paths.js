@@ -32,6 +32,4 @@ export const gamesPath = path.join(vibeportDir, 'games')
 export const coversDir = path.join(vibeportDir, 'covers')
 export const settingsPath = path.join(vibeportDir, 'settings.json')
 
-export const STEAMGRIDDB_API_KEY = 'a8dc25ee4cba2b7e42c459cad790da4f'
-export const RAWG_API_KEY = 'c542e67aec3a4340908f9de9e86038af'
-
+export const STEAMGRIDDB_API_KEY = process.env.STEAMGRIDDB_API_KEY || 'a8dc25ee4cba2b7e42c459cad790da4f'

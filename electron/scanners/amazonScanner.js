@@ -32,7 +32,7 @@ export async function scanAmazonLibrary() {
   console.log('[AUTO-SCAN] Scanning Amazon Games library...')
 
   try {
-    const { stdout } = await execAsync(`powershell -NoProfile -Command "${AMAZON_POWERSHELL_SCRIPT.replace(/"/g, '"').replace(/n/g, ' ')}"`)
+    const { stdout } = await execAsync(`powershell -NoProfile -Command "${AMAZON_POWERSHELL_SCRIPT.replace(/"/g, '"').replace(/\n/g, ' ')}"`)
     
     if (!stdout.trim()) {
       return

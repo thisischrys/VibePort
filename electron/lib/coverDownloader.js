@@ -61,6 +61,11 @@ export async function downloadCoverForGame(gameData, notifyRenderer, preferStati
   const { game_id: gameId, name, source } = gameData
   if (!name) return false
 
+  const clean = path.basename(gameId)
+  if (clean !== gameId || gameId.includes('..') || gameId.includes('/') || gameId.includes('\\')) {
+    throw new Error('Path traversal detected in gameId')
+  }
+
   const gameFilePath = path.join(gamesPath, `${gameId}.json`)
 
   // 1. Check if cover exists on disk

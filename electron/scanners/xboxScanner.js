@@ -50,7 +50,7 @@ export async function scanXboxLibrary() {
   console.log('[AUTO-SCAN] Scanning Xbox/UWP Games library...')
 
   try {
-    const { stdout } = await execAsync(`powershell -NoProfile -Command "${XBOX_POWERSHELL_SCRIPT.replace(/"/g, '"').replace(/n/g, ' ')}"`)
+    const { stdout } = await execAsync(`powershell -NoProfile -Command "${XBOX_POWERSHELL_SCRIPT.replace(/"/g, '"').replace(/\n/g, ' ')}"`)
     
     if (!stdout.trim()) {
       return

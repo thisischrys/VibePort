@@ -36,7 +36,16 @@ const GtkSwitch = ({ active, onChange, accentColor }) => (
   </div>
 )
 
-export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggleWindowsAccent, onUpdateCovers, onUndo, initialTab = 'general' }) => {
+export const PreferencesModal = ({
+  accentHex,
+  onClose,
+  onRemoveAllGames,
+  onUpdateCovers,
+  onUndo,
+  initialTab = 'general',
+  settings = {},
+  updateSettings
+}) => {
   const [activeTab, setActiveTab] = useState(initialTab) // 'general' | 'import'
   const [modalToast, setModalToast] = useState(null)
 
@@ -50,50 +59,9 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
     return () => clearTimeout(t)
   }, [modalToast])
 
-  // Preferences states loaded from / saved to localStorage
-  const [exitAfterLaunch, setExitAfterLaunch] = useState(() => {
-    return localStorage.getItem('vibeport_exit_after_launch') === 'true'
-  })
-  const [useWindowsAccent, setUseWindowsAccent] = useState(() => {
-    return localStorage.getItem('vibeport_use_windows_accent') !== 'false'
-  })
-  const [coverLaunchesGame, setCoverLaunchesGame] = useState(() => {
-    return localStorage.getItem('vibeport_cover_launches_game') !== 'false'
-  })
-
-  // Behavior states under Import tab
-  const [importAutomatically, setImportAutomatically] = useState(() => {
-    return localStorage.getItem('vibeport_auto_import') !== 'false'
-  })
-  const [removeUninstalled, setRemoveUninstalled] = useState(() => {
-    return localStorage.getItem('vibeport_remove_uninstalled') !== 'false'
-  })
-
-  // Library scanners status
-  const [scanSteam, setScanSteam] = useState(() => localStorage.getItem('vibeport_scan_steam') !== 'false')
-  const [scanGog, setScanGog] = useState(() => localStorage.getItem('vibeport_scan_gog') !== 'false')
-  const [scanEpic, setScanEpic] = useState(() => localStorage.getItem('vibeport_scan_epic') !== 'false')
-  const [scanEa, setScanEa] = useState(() => localStorage.getItem('vibeport_scan_ea') !== 'false')
-  const [scanUbisoft, setScanUbisoft] = useState(() => localStorage.getItem('vibeport_scan_ubisoft') !== 'false')
-  const [scanBnet, setScanBnet] = useState(() => localStorage.getItem('vibeport_scan_bnet') !== 'false')
-  const [scanXbox, setScanXbox] = useState(() => localStorage.getItem('vibeport_scan_xbox') !== 'false')
-  const [scanAmazon, setScanAmazon] = useState(() => localStorage.getItem('vibeport_scan_amazon') !== 'false')
-
-  const togglePreference = (key, currentVal, setter) => {
-    const newVal = !currentVal
-    setter(newVal)
-    localStorage.setItem(key, newVal ? 'true' : 'false')
-    
-    // Sync to backend settings.json
-    const backendKey = key.replace('vibeport_', '')
-    IpcManager.saveSettings({ [backendKey]: newVal }).catch(console.error)
-  }
-
   const handleToggleAccent = () => {
-    const nextVal = !useWindowsAccent
-    setUseWindowsAccent(nextVal)
-    onToggleWindowsAccent(nextVal)
-    IpcManager.saveSettings({ use_windows_accent: nextVal }).catch(console.error)
+    const nextVal = !settings.use_windows_accent
+    updateSettings({ use_windows_accent: nextVal }).catch(console.error)
   }
 
   const handleRemoveAllClick = () => {
@@ -113,7 +81,7 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Exit After Launching Games</span>
             </div>
-            <GtkSwitch active={exitAfterLaunch} onChange={() => togglePreference('vibeport_exit_after_launch', exitAfterLaunch, setExitAfterLaunch)} accentColor={accentHex} />
+            <GtkSwitch active={!!settings.exit_after_launch} onChange={() => updateSettings({ exit_after_launch: !settings.exit_after_launch })} accentColor={accentHex} />
           </div>
           {/* Row 1.5: Cover Image Launches Game */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
@@ -121,14 +89,14 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Cover Image Launches Game</span>
               <span style={{ fontSize: '10.5px', color: '#8e8e93', fontWeight: '500' }}>Swaps the behavior of the cover image and the play button</span>
             </div>
-            <GtkSwitch active={coverLaunchesGame} onChange={() => togglePreference('vibeport_cover_launches_game', coverLaunchesGame, setCoverLaunchesGame)} accentColor={accentHex} />
+            <GtkSwitch active={!!settings.cover_launches_game} onChange={() => updateSettings({ cover_launches_game: !settings.cover_launches_game })} accentColor={accentHex} />
           </div>
           {/* Row 2: Use Windows Accent Color */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Use Windows Theme Color</span>
             </div>
-            <GtkSwitch active={useWindowsAccent} onChange={handleToggleAccent} accentColor={accentHex} />
+            <GtkSwitch active={!!settings.use_windows_accent} onChange={handleToggleAccent} accentColor={accentHex} />
           </div>
         </div>
       </div>
@@ -204,12 +172,12 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
           {/* Row 1: Import Automatically */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Import Games Automatically</span>
-            <GtkSwitch active={importAutomatically} onChange={() => togglePreference('vibeport_auto_import', importAutomatically, setImportAutomatically)} accentColor={accentHex} />
+            <GtkSwitch active={!!settings.auto_import} onChange={() => updateSettings({ auto_import: !settings.auto_import })} accentColor={accentHex} />
           </div>
           {/* Row 2: Remove Uninstalled */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
             <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Remove Uninstalled Games</span>
-            <GtkSwitch active={removeUninstalled} onChange={() => togglePreference('vibeport_remove_uninstalled', removeUninstalled, setRemoveUninstalled)} accentColor={accentHex} />
+            <GtkSwitch active={!!settings.remove_uninstalled} onChange={() => updateSettings({ remove_uninstalled: !settings.remove_uninstalled })} accentColor={accentHex} />
           </div>
         </div>
       </div>
@@ -221,14 +189,14 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
         </h4>
         <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
           {[
-            { label: 'Amazon Games', val: scanAmazon, setter: setScanAmazon, key: 'vibeport_scan_amazon', source: 'amazon' },
-            { label: 'Battle.net', val: scanBnet, setter: setScanBnet, key: 'vibeport_scan_bnet', source: 'battlenet' },
-            { label: 'EA App', val: scanEa, setter: setScanEa, key: 'vibeport_scan_ea', source: 'ea' },
-            { label: 'Epic Games', val: scanEpic, setter: setScanEpic, key: 'vibeport_scan_epic', source: 'epic' },
-            { label: 'GOG Galaxy', val: scanGog, setter: setScanGog, key: 'vibeport_scan_gog', source: 'gog' },
-            { label: 'Steam', val: scanSteam, setter: setScanSteam, key: 'vibeport_scan_steam', source: 'steam' },
-            { label: 'Ubisoft Connect', val: scanUbisoft, setter: setScanUbisoft, key: 'vibeport_scan_ubisoft', source: 'ubisoft' },
-            { label: 'Xbox App', val: scanXbox, setter: setScanXbox, key: 'vibeport_scan_xbox', source: 'xbox' },
+            { label: 'Amazon Games', val: !!settings.scan_amazon, key: 'scan_amazon', source: 'amazon' },
+            { label: 'Battle.net', val: !!settings.scan_bnet, key: 'scan_bnet', source: 'battlenet' },
+            { label: 'EA App', val: !!settings.scan_ea, key: 'scan_ea', source: 'ea' },
+            { label: 'Epic Games', val: !!settings.scan_epic, key: 'scan_epic', source: 'epic' },
+            { label: 'GOG Galaxy', val: !!settings.scan_gog, key: 'scan_gog', source: 'gog' },
+            { label: 'Steam', val: !!settings.scan_steam, key: 'scan_steam', source: 'steam' },
+            { label: 'Ubisoft Connect', val: !!settings.scan_ubisoft, key: 'scan_ubisoft', source: 'ubisoft' },
+            { label: 'Xbox App', val: !!settings.scan_xbox, key: 'scan_xbox', source: 'xbox' },
           ].map((item, idx, arr) => (
             <div
               key={item.key}
@@ -244,7 +212,7 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
                 <LauncherIcon source={item.source} size={16} color={accentHex ? `#${accentHex}` : 'var(--accent)'} />
                 <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>{item.label}</span>
               </div>
-              <GtkSwitch active={item.val} onChange={() => togglePreference(item.key, item.val, item.setter)} accentColor={accentHex} />
+              <GtkSwitch active={item.val} onChange={() => updateSettings({ [item.key]: !item.val })} accentColor={accentHex} />
             </div>
           ))}
         </div>
@@ -273,6 +241,9 @@ export const PreferencesModal = ({ accentHex, onClose, onRemoveAllGames, onToggl
       onClick={onClose}
     >
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Preferences"
         initial={{ scale: 0.95, y: 15 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 15 }}

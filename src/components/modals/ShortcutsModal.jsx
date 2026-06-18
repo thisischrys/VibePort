@@ -266,6 +266,9 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
       onClick={onClose}
     >
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Keyboard Shortcuts"
         initial={{ scale: 0.95, y: 15 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 15 }}

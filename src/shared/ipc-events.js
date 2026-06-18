@@ -51,7 +51,4 @@ export const IPC_EVENTS = {
   SHOW_TOAST: 'show-toast',
   OPEN_EXTERNAL_URL: 'open-external-url',
   SHOW_WHATS_NEW: 'show-whats-new',
-
-  // RAWG Video Support
-  FETCH_RAWG_VIDEOS: 'fetch-rawg-videos',
 };

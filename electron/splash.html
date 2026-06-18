@@ -100,24 +100,24 @@
   </div>
 
   <script>
-    const { ipcRenderer } = require('electron');
+    if (window.api) {
+      // Handle accent color update
+      window.api.onSetAccentColor((color) => {
+        const hex = color.startsWith('#') ? color : '#' + color;
+        document.documentElement.style.setProperty('--accent-color', hex);
+      });
 
-    // Handle accent color update
-    ipcRenderer.on('set-accent-color', (event, color) => {
-      const hex = color.startsWith('#') ? color : '#' + color;
-      document.documentElement.style.setProperty('--accent-color', hex);
-    });
+      // Handle status update
+      window.api.onUpdateStatus((text) => {
+        document.getElementById('status-text').innerText = text;
+      });
 
-    // Handle status update
-    ipcRenderer.on('update-status', (event, text) => {
-      document.getElementById('status-text').innerText = text;
-    });
-
-    // Handle progress update
-    ipcRenderer.on('update-progress', (event, percent) => {
-      const percentage = Math.min(Math.max(percent, 0), 100);
-      document.getElementById('bar').style.width = percentage + '%';
-    });
+      // Handle progress update
+      window.api.onUpdateProgress((percent) => {
+        const percentage = Math.min(Math.max(percent, 0), 100);
+        document.getElementById('bar').style.width = percentage + '%';
+      });
+    }
   </script>
 </body>
 </html>

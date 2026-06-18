@@ -1,6 +1,6 @@
 export function calculateDeleteAction(gameData, gameId) {
   if (!gameData) return { action: 'none' }
-  const isStoreGame = gameData.source === 'steam' || gameData.source === 'gog' || gameId.startsWith('steam_') || gameId.startsWith('gog_')
+  const isStoreGame = gameData.source !== 'imported' && gameData.source !== 'manual' && !gameId.startsWith('imported_')
   
   if (isStoreGame) {
     return { action: 'mark_removed', game: { ...gameData, removed: true } }

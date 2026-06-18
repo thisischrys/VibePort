@@ -48,10 +48,6 @@ export class IpcManager {
     return window.api?.downloadCoverUrl(gameId, url) ?? Promise.resolve();
   }
 
-  static fetchGameVideos(gameName) {
-    return window.api?.fetchRawgVideos(gameName) ?? Promise.resolve({ movies: [], youtube: [] });
-  }
-
   static getAccentColor() {
     return window.api?.getAccentColor() ?? Promise.resolve('');
   }
@@ -122,6 +118,10 @@ export class IpcManager {
 
   static openShortcutsWindow() {
     return window.api?.openShortcutsWindow() ?? Promise.resolve();
+  }
+
+  static supportsShortcutsWindow() {
+    return typeof window !== 'undefined' && !!window.api?.openShortcutsWindow;
   }
 
   static isMaximized() {

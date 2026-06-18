@@ -1,8 +1,6 @@
-import { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, systemPreferences, session } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import { app, BrowserWindow, protocol, net, systemPreferences } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
-import { spawn, exec } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -11,9 +9,7 @@ const __dirname = path.dirname(__filename)
 // Detect if running in test mode
 const isTestMode = process.argv.includes('--test-mode')
 
-// ─── Override userData path to use proper capitalization ──────────────────────
-// Electron derives userData from package.json "name" (lowercase "vibeport").
-// We force it to "VibePort" here, BEFORE paths.js reads app.getPath('userData').
+// Override userData path to use proper capitalization
 if (isTestMode) {
   const tempUserData = path.join(app.getPath('temp'), 'vibeport-test-user-data')
   app.setPath('userData', tempUserData)
@@ -26,12 +22,10 @@ if (isTestMode) {
   }
 }
 
-import { gamesPath, coversDir, settingsPath, vibeportDir, STEAMGRIDDB_API_KEY, RAWG_API_KEY } from './lib/paths.js'
+import { gamesPath, coversDir, settingsPath, STEAMGRIDDB_API_KEY } from './lib/paths.js'
 import { getSettingsData, saveSettingsData } from './lib/settings.js'
-import { loadAllGames, writeGame, removeCoverFiles, readGame, deleteGameFile, deleteAllGames, getAllGameIds } from './lib/gameStore.js'
-import { calculateDeleteAction, calculateUndoDeletions } from './lib/gameLogic.js'
-import { downloadCoverFromUrl } from './lib/images.js'
-import { runBackgroundCoverDownloader, downloadCoverForGame } from './lib/coverDownloader.js'
+import { removeCoverFiles } from './lib/gameStore.js'
+import { runBackgroundCoverDownloader } from './lib/coverDownloader.js'
 import { scanSteamLibrary } from './scanners/steamScanner.js'
 import { scanGogLibrary } from './scanners/gogScanner.js'
 import { scanEpicLibrary } from './scanners/epicScanner.js'
@@ -42,50 +36,41 @@ import { scanXboxLibrary } from './scanners/xboxScanner.js'
 import { scanAmazonLibrary } from './scanners/amazonScanner.js'
 import { IPC_EVENTS } from '../src/shared/ipc-events.js'
 
+import { state } from './state.js'
+import { createWindow, createSplashWindow, launchApp } from './windows.js'
+import { setupIpcHandlers } from './ipc-handlers.js'
+import { setupAutoUpdater } from './updater.js'
+
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.vibeport.app')
 }
 
-const gotTheLock = isTestMode ? true : app.requestSingleInstanceLock()
-if (!gotTheLock) {
+state.gotTheLock = isTestMode ? true : app.requestSingleInstanceLock()
+if (!state.gotTheLock) {
   app.quit()
 } else if (!isTestMode) {
   app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
+    if (state.mainWindow) {
+      if (state.mainWindow.isMinimized()) state.mainWindow.restore()
+      state.mainWindow.focus()
     }
   })
 }
 
-let mainWindow = null
-let splashWindow = null
-let shortcutsWindow = null
-let lastAccentColor = null
-
-// ─── Active Scan Counter (tracks concurrent import + folder scan) ─────────────
-// Counts how many scan operations are currently running so the UI knows when
-// ALL have finished rather than clearing on the first to complete.
-import { scanManager } from './lib/scanManager.js'
-
-// ─── Renderer Notification Helper ────────────────────────────────────────────
 function notifyRenderer() {
-  if (mainWindow) mainWindow.webContents.send(IPC_EVENTS.GAMES_UPDATED)
+  if (state.mainWindow) state.mainWindow.webContents.send(IPC_EVENTS.GAMES_UPDATED)
 }
 
-// ─── Orphan Cover Cleanup Helper ──────────────────────────────────────────────
 function cleanOrphanCovers() {
   try {
     if (!fs.existsSync(coversDir) || !fs.existsSync(gamesPath)) return
     
-    // 1. Gather all game IDs that exist in the database (i.e. have JSON files)
     const activeGameIds = new Set()
     const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
     for (const file of files) {
       activeGameIds.add(file.replace('.json', ''))
     }
     
-    // 2. Scan covers directory and remove files whose gameId is not in activeGameIds
     const coverFiles = fs.readdirSync(coversDir)
     const processedIds = new Set()
     
@@ -105,929 +90,6 @@ function cleanOrphanCovers() {
   }
 }
 
-// ─── Window Creation ──────────────────────────────────────────────────────────
-function createWindow() {
-  const iconPath = path.join(__dirname, '../build/icon_transparent.png')
-  const settings = getSettingsData()
-  const bounds = settings.window_bounds || { width: 1280, height: 720 }
-  
-  mainWindow = new BrowserWindow({
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
-    titleBarStyle: 'hidden',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      sandbox: false
-    },
-    autoHideMenuBar: true,
-    show: !settings.window_maximized
-  })
-
-  if (settings.window_maximized) {
-    mainWindow.maximize()
-    mainWindow.show()
-  }
-
-  mainWindow.setMenu(null)
-
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-    // mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
-  }
-
-  // Window state event listeners to push state to React
-  mainWindow.on('maximize', () => {
-    mainWindow.webContents.send(IPC_EVENTS.WINDOW_STATE_CHANGED, true)
-  })
-  mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send(IPC_EVENTS.WINDOW_STATE_CHANGED, false)
-  })
-
-  const saveGeometry = () => {
-    if (!mainWindow) return
-    const isMaximized = mainWindow.isMaximized()
-    const bounds = mainWindow.getBounds()
-    const update = { window_maximized: isMaximized }
-    if (!isMaximized) {
-      update.window_bounds = bounds
-    }
-    saveSettingsData(update)
-  }
-
-  mainWindow.on('resize', saveGeometry)
-  mainWindow.on('move', saveGeometry)
-  mainWindow.on('close', saveGeometry)
-
-  mainWindow.on('closed', () => { mainWindow = null })
-}
-
-function createShortcutsWindow() {
-  if (shortcutsWindow) {
-    shortcutsWindow.focus()
-    return
-  }
-
-  const iconPath = path.join(__dirname, '../build/icon_transparent.png')
-  shortcutsWindow = new BrowserWindow({
-    parent: mainWindow || undefined,
-    width: 640,
-    height: 420,
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    hasShadow: false,
-    thickFrame: false,
-    resizable: false,
-    alwaysOnTop: true,
-    center: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      sandbox: false
-    },
-    show: false
-  })
-
-  shortcutsWindow.setMenu(null)
-
-  if (process.env.VITE_DEV_SERVER_URL) {
-    shortcutsWindow.loadURL(process.env.VITE_DEV_SERVER_URL + '#shortcuts')
-  } else {
-    shortcutsWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: 'shortcuts' })
-  }
-
-  // Natively freeze main window dragging and resizing silently
-  if (mainWindow) {
-    mainWindow.setMovable(false)
-    mainWindow.setResizable(false)
-    mainWindow.webContents.send(IPC_EVENTS.SHORTCUTS_WINDOW_STATUS, true)
-  }
-
-  shortcutsWindow.once('ready-to-show', () => {
-    shortcutsWindow.center()
-    shortcutsWindow.show()
-  })
-
-  shortcutsWindow.on('closed', () => {
-    shortcutsWindow = null
-    if (mainWindow) {
-      mainWindow.setMovable(true)
-      mainWindow.setResizable(true)
-      mainWindow.webContents.send(IPC_EVENTS.SHORTCUTS_WINDOW_STATUS, false)
-      mainWindow.focus()
-    }
-  })
-}
-
-function createSplashWindow() {
-  const accentColor = lastAccentColor || '8b5cf6'
-  
-  splashWindow = new BrowserWindow({
-    width: 480,
-    height: 300,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    resizable: false,
-    center: true,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  })
-
-  let splashPath = path.join(__dirname, 'splash.html')
-  if (process.env.VITE_DEV_SERVER_URL) {
-    splashPath = path.join(__dirname, '../electron/splash.html')
-  }
-  splashWindow.loadFile(splashPath)
-
-  splashWindow.webContents.on('did-finish-load', () => {
-    splashWindow.webContents.send(IPC_EVENTS.SET_ACCENT_COLOR, accentColor)
-  })
-
-  splashWindow.on('closed', () => {
-    splashWindow = null
-  })
-}
-
-function launchApp() {
-  if (splashWindow) {
-    try { splashWindow.close() } catch (e) { console.error(e) }
-  }
-  if (mainWindow) {
-    mainWindow.show()
-    mainWindow.focus()
-  }
-}
-
-// ─── IPC: Games ───────────────────────────────────────────────────────────────
-ipcMain.handle(IPC_EVENTS.GET_GAMES, () => loadAllGames())
-
-ipcMain.handle(IPC_EVENTS.SAVE_GAME, async (event, gameData) => {
-  try {
-    let gameId = gameData.game_id
-    let existingData = {}
-
-    if (!gameId) {
-      gameId = `imported_${Date.now()}`
-      existingData = {
-        added: Math.floor(Date.now() / 1000),
-        developer: null,
-        executable: '',
-        game_id: gameId,
-        hidden: false,
-        last_played: 0,
-        name: '',
-        removed: false,
-        source: 'imported',
-        version: 1.5
-      }
-    } else {
-      const gameFilePath = path.join(gamesPath, `${gameId}.json`)
-      if (fs.existsSync(gameFilePath)) {
-        existingData = JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
-      }
-    }
-
-    const merged = { ...existingData, ...gameData, game_id: gameId }
-    if (gameId.startsWith('imported_') && merged.source === 'manual') merged.source = 'imported'
-
-    writeGame(gameId, merged)
-    notifyRenderer()
-
-    // Automatically trigger cover download in the background for new or updated custom games
-    downloadCoverForGame(merged, notifyRenderer).catch(err => {
-      console.error(`[BG-COVER] Failed to automatically download cover for ${merged.name}:`, err.message)
-    })
-
-    return { success: true, game: merged }
-  } catch (e) {
-    console.error('save-game error:', e)
-    return { success: false, error: e.message }
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.DELETE_GAME, async (event, gameId) => {
-  try {
-    const data = readGame(gameId)
-    if (!data) return false
-
-    const result = calculateDeleteAction(data, gameId)
-    
-    if (result.action === 'mark_removed') {
-      writeGame(gameId, result.game)
-    } else if (result.action === 'delete_file') {
-      deleteGameFile(gameId)
-    }
-
-    notifyRenderer()
-    return true
-  } catch (e) {
-    console.error('delete-game error:', e)
-    return false
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.UPDATE_GAME_STATUS, async (event, gameId, status) => {
-  try {
-    const gameFilePath = path.join(gamesPath, `${gameId}.json`)
-    if (!fs.existsSync(gameFilePath)) return false
-
-    const data = JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
-    writeGame(gameId, { ...data, ...status })
-    notifyRenderer()
-    return true
-  } catch (e) {
-    console.error('update-game-status error:', e)
-    return false
-  }
-})
-
-// ─── IPC: Game Launch ─────────────────────────────────────────────────────────
-ipcMain.handle(IPC_EVENTS.LAUNCH_GAME, async (event, executable) => {
-  console.log('Launching game:', executable)
-  return new Promise((resolve, reject) => {
-    try {
-      let cmd = executable.trim()
-
-      // Strip legacy "start " prefix if present
-      if (cmd.startsWith('start ')) cmd = cmd.slice(6).trim()
-
-      // Battle.net special direct executable launching (remedies protocol handler issues in Windows)
-      if (cmd.startsWith('battlenet://')) {
-        let gameCode = cmd.replace('battlenet://play/', '').replace('battlenet://', '').trim()
-        exec('reg query "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Battle.net" /v "InstallLocation"', { windowsHide: true }, (error, stdout) => {
-          let bnetPath = 'C:\\Program Files (x86)\\Battle.net\\Battle.net.exe'
-          if (!error && stdout) {
-            const match = stdout.match(/InstallLocation\s+REG_SZ\s+(.+)/)
-            if (match && match[1]) {
-              bnetPath = path.join(match[1].trim(), 'Battle.net.exe')
-            }
-          }
-          console.log(`[LAUNCH] Direct Battle.net launch: "${bnetPath}" --exec="launch ${gameCode}" --autostarted`)
-          const child = spawn(bnetPath, [`--exec=launch ${gameCode}`, '--autostarted'], {
-            shell: false, detached: true, stdio: 'ignore', windowsHide: true
-          })
-          child.unref()
-          resolve(true)
-        })
-        return
-      }
-
-      // Protocol URLs (Steam, GOG Galaxy, Epic, EA, Ubisoft) — open via shell
-      if (cmd.startsWith('steam://') || cmd.startsWith('goggalaxy://') ||
-          cmd.startsWith('com.epicgames.launcher://') || cmd.startsWith('origin2://') ||
-          cmd.startsWith('uplay://')) {
-        shell.openExternal(cmd).then(() => resolve(true)).catch(reject)
-        return
-      }
-
-      // Direct file path — strip surrounding quotes then launch
-      let execPath = cmd
-      if (execPath.startsWith('"') && execPath.endsWith('"')) execPath = execPath.slice(1, -1)
-
-      shell.openPath(execPath).then((errMsg) => {
-        if (errMsg) {
-          console.warn('[LAUNCH] shell.openPath failed, falling back to spawn:', errMsg)
-          const launchCwd = path.isAbsolute(execPath) ? path.dirname(execPath) : undefined
-          const child = spawn(execPath, [], {
-            shell: false, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
-          })
-
-          child.on('error', () => {
-            // Fallback to shell: true for edge cases (batch files, etc.)
-            const fallback = spawn(executable, [], {
-              shell: true, detached: true, cwd: launchCwd, stdio: 'ignore', windowsHide: false
-            })
-            fallback.unref()
-          })
-          child.unref()
-        }
-        resolve(true)
-      }).catch((err) => {
-        console.error('[LAUNCH] shell.openPath exception:', err)
-        reject(err)
-      })
-    } catch (error) {
-      console.error('Failed to launch game:', error)
-      reject(error)
-    }
-  })
-})
-
-// ─── IPC: Settings ────────────────────────────────────────────────────────────
-ipcMain.handle(IPC_EVENTS.GET_SETTINGS, () => getSettingsData())
-
-ipcMain.handle(IPC_EVENTS.SAVE_SETTINGS, async (event, newSettings) => {
-  try {
-    return saveSettingsData(newSettings)
-  } catch (e) {
-    console.error('Failed to save settings:', e)
-    throw e
-  }
-})
-
-// ─── IPC: Window Controls ─────────────────────────────────────────────────────
-ipcMain.on(IPC_EVENTS.WINDOW_MINIMIZE, (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender)
-  if (win) win.minimize()
-})
-
-ipcMain.on(IPC_EVENTS.WINDOW_MAXIMIZE, (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender)
-  if (win) {
-    if (win.isMaximized()) {
-      win.unmaximize()
-    } else {
-      win.maximize()
-    }
-  }
-})
-
-ipcMain.on(IPC_EVENTS.WINDOW_CLOSE, (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender)
-  if (win) win.close()
-})
-
-ipcMain.handle(IPC_EVENTS.WINDOW_IS_MAXIMIZED, (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender)
-  return win ? win.isMaximized() : false
-})
-
-ipcMain.handle(IPC_EVENTS.OPEN_SHORTCUTS_WINDOW, () => {
-  createShortcutsWindow()
-})
-
-// ─── IPC: System ─────────────────────────────────────────────────────────────
-ipcMain.handle(IPC_EVENTS.GET_ACCENT_COLOR, () => {
-  try {
-    if (process.platform === 'win32' && systemPreferences.getAccentColor) {
-      const raw = systemPreferences.getAccentColor()
-      return raw.length === 8 ? raw.slice(0, 6) : raw
-    }
-    return null
-  } catch (e) {
-    console.error('get-accent-color error:', e)
-    return null
-  }
-})
-
-ipcMain.on(IPC_EVENTS.GET_ACCENT_COLOR_SYNC, (event) => {
-  try {
-    if (process.platform === 'win32' && systemPreferences.getAccentColor) {
-      const raw = systemPreferences.getAccentColor()
-      event.returnValue = raw.length === 8 ? raw.slice(0, 6) : raw
-    } else {
-      event.returnValue = null
-    }
-  } catch (e) {
-    console.error('get-accent-color-sync error:', e)
-    event.returnValue = null
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.SELECT_FOLDER, async () => {
-  try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory'],
-      title: 'Select Games Folder to Scan'
-    })
-    return result.canceled ? null : result.filePaths[0]
-  } catch (e) {
-    console.error('select-folder error:', e)
-    return null
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.SELECT_FILE, async () => {
-  try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile'],
-      filters: [
-        { name: 'Executables', extensions: ['exe', 'lnk', 'bat', 'cmd', 'sh', 'com'] },
-        { name: 'All Files', extensions: ['*'] }
-      ]
-    })
-    return result.canceled ? null : result.filePaths[0]
-  } catch (e) {
-    console.error('select-file error:', e)
-    return null
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.SELECT_IMAGE, async () => {
-  try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile'],
-      filters: [
-        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng'] },
-        { name: 'All Files', extensions: ['*'] }
-      ]
-    })
-    return result.canceled ? null : result.filePaths[0]
-  } catch (e) {
-    console.error('select-image error:', e)
-    return null
-  }
-})
-
-// ─── IPC: Folder Scanner (manual) ────────────────────────────────────────────
-ipcMain.handle(IPC_EVENTS.SCAN_FOLDER, async (event, folderPath) => {
-  scanManager.startScan()
-  scanManager.sendProgress(0, 100, 'Scanning folder for games...', 'folder')
-  try {
-
-    if (!folderPath || !fs.existsSync(folderPath)) {
-      scanManager.endScan()
-      scanManager.sendProgress(0, 100, '', 'folder')
-      return { success: false, error: 'Invalid folder path' }
-    }
-
-    const gameDirs = fs.readdirSync(folderPath).filter(f => {
-      try { return fs.statSync(path.join(folderPath, f)).isDirectory() } catch { return false }
-    })
-
-    // Load existing games for duplicate prevention
-    let existingGames = []
-    if (fs.existsSync(gamesPath)) {
-      for (const file of fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))) {
-        try {
-          existingGames.push(JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8')))
-        } catch { /* skip corrupt files */ }
-      }
-    }
-
-    const ignoredKeywords = [
-      'crash', 'handler', 'reporter', 'unins', 'uninstall', 'setup', 'install',
-      'config', 'tool', 'ea', 'epic', 'gog', 'steam', 'workshop', 'redist',
-      'dependencies', 'dotNetFx', 'vc_redist', 'dxwebsetup', 'physx', 'directx'
-    ]
-
-    function findExecutables(dir, depth = 0) {
-      if (depth > 3) return []
-      let results = []
-      let list
-      try { list = fs.readdirSync(dir) } catch { return [] }
-      for (const file of list) {
-        const filePath = path.join(dir, file)
-        let stat
-        try { stat = fs.statSync(filePath) } catch { continue }
-        if (stat.isDirectory()) {
-          results = results.concat(findExecutables(filePath, depth + 1))
-        } else if (file.toLowerCase().endsWith('.exe')) {
-          results.push({ path: filePath, name: file, size: stat.size, depth })
-        }
-      }
-      return results
-    }
-
-    let addedCount = 0
-    const addedGames = []
-
-    for (const dirName of gameDirs) {
-      const cleanDirName = dirName.toLowerCase().trim()
-      const targetDirPath = path.join(folderPath, dirName)
-
-      const alreadyExists = existingGames.some(g => {
-        if (g.name?.toLowerCase().trim() === cleanDirName) return true
-        if (g.executable) {
-          const normExe = g.executable.toLowerCase().replace(/\\/g, '/')
-          const normTarget = targetDirPath.toLowerCase().replace(/\\/g, '/')
-          return normExe === normTarget || normExe.startsWith(normTarget + '/')
-        }
-        return false
-      })
-      if (alreadyExists) continue
-
-      const allExes = findExecutables(targetDirPath)
-      if (allExes.length === 0) continue
-
-      const candidates = allExes.filter(exe => !ignoredKeywords.some(k => exe.name.toLowerCase().includes(k)))
-      const pool = candidates.length > 0 ? candidates : allExes
-
-      // Smart matching algorithm that handles roman numerals, acronyms, and abbreviations
-      const isGameExeMatch = (dir, exe) => {
-        const cleanDir = dir.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
-        const cleanExe = exe.toLowerCase().replace('.exe', '').replace(/[^a-z0-9\s]/g, ' ')
-
-        const normalizeText = (text) => {
-          return text
-            .replace(/\bviii\b/g, '8')
-            .replace(/\bvii\b/g, '7')
-            .replace(/\bvi\b/g, '6')
-            .replace(/\biii\b/g, '3')
-            .replace(/\bii\b/g, '2')
-            .replace(/\biv\b/g, '4')
-            .replace(/\bv\b/g, '5')
-            .replace(/\bix\b/g, '9')
-            .replace(/\bx\b/g, '10')
-        }
-
-        const dirNorm = normalizeText(cleanDir)
-        const exeNorm = normalizeText(cleanExe)
-
-        const dirWords = dirNorm.split(/\s+/).filter(Boolean)
-        const exeJoined = exeNorm.replace(/\s+/g, '')
-        const dirJoined = dirNorm.replace(/\s+/g, '')
-
-        // 1. Direct substring match (e.g. "cyberpunk2077" matches "cyberpunk2077.exe")
-        if (dirJoined.includes(exeJoined) || exeJoined.includes(dirJoined)) return true
-
-        // 2. Acronym generation with trailing words/numbers (e.g. "final fantasy 7 rebirth" -> "ff7rebirth")
-        let initials = ''
-        let suffix = ''
-        let foundNumber = false
-
-        for (const word of dirWords) {
-          if (/^\d+$/.test(word)) {
-            foundNumber = true
-            suffix += word
-          } else if (foundNumber) {
-            suffix += word
-          } else {
-            initials += word[0] || ''
-          }
-        }
-
-        const acronymCandidate = (initials + suffix).toLowerCase()
-        if (acronymCandidate.length > 2 && (exeJoined.includes(acronymCandidate) || acronymCandidate.includes(exeJoined))) {
-          return true
-        }
-
-        // 3. Full words acronym check (e.g. "grand theft auto v" -> "gtav")
-        const rawWords = cleanDir.split(/\s+/).filter(Boolean)
-        const fullAcronym = rawWords.map(w => w[0] || '').join('')
-        if (fullAcronym.length > 2 && (exeJoined === fullAcronym || exeJoined.includes(fullAcronym))) {
-          return true
-        }
-
-        return false
-      }
-
-      let selectedExe
-      const directMatches = pool.filter(exe => isGameExeMatch(dirName, exe.name))
-
-      if (directMatches.length === 1) {
-        selectedExe = directMatches[0]
-      } else if (directMatches.length > 1) {
-        const minDepth = Math.min(...directMatches.map(e => e.depth))
-        const minDepthPool = directMatches.filter(e => e.depth === minDepth)
-        selectedExe = minDepthPool.reduce((a, b) => b.size > a.size ? b : a)
-      } else {
-        const minDepth = Math.min(...pool.map(e => e.depth))
-        const minDepthPool = pool.filter(e => e.depth === minDepth)
-        selectedExe = minDepthPool.reduce((a, b) => b.size > a.size ? b : a)
-      }
-
-      if (selectedExe) {
-        const gameId = `imported_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-        const gameData = {
-          added: Math.floor(Date.now() / 1000),
-          developer: null,
-          executable: selectedExe.path,
-          game_id: gameId,
-          hidden: false,
-          last_played: 0,
-          name: dirName,
-          removed: false,
-          source: 'imported',
-          version: 1.5
-        }
-        writeGame(gameId, gameData)
-        addedGames.push(gameData)
-        addedCount++
-        console.log(`[SCANNER] Added game: ${dirName} -> ${selectedExe.name}`)
-      }
-    }
-
-    if (addedCount > 0) {
-      notifyRenderer()
-      await runBackgroundCoverDownloader(notifyRenderer, true, addedGames, 'folder')
-
-      // Kick off animated cover upgrades in the background (non-blocking)
-      ;(async () => {
-        await runBackgroundCoverDownloader(notifyRenderer, false, addedGames, 'folder')
-      })()
-    }
-    scanManager.endScan()
-    scanManager.sendProgress(100, 100, 'Done', 'folder')
-    return { success: true, count: addedCount }
-  } catch (e) {
-    console.error('scan-folder error:', e)
-    scanManager.endScan()
-    scanManager.sendProgress(0, 100, '', 'folder')
-    return { success: false, error: e.message }
-  }
-})
-
-// ─── IPC: SteamGridDB ─────────────────────────────────────────────────────────
-ipcMain.handle(IPC_EVENTS.SEARCH_STEAMGRIDDB, async (event, query) => {
-  try {
-    const res = await fetch(
-      `https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(query)}`,
-      { headers: { Authorization: `Bearer ${STEAMGRIDDB_API_KEY}` } }
-    )
-    if (!res.ok) throw new Error(`SteamGridDB search failed: ${res.statusText}`)
-    const json = await res.json()
-    return json.success && Array.isArray(json.data) ? json.data.map(g => ({ id: g.id, name: g.name })) : []
-  } catch (e) {
-    console.error('SteamGridDB search error:', e)
-    throw e
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.FETCH_STEAMGRIDDB_COVERS, async (event, gameId) => {
-  try {
-    const [animRes, statRes] = await Promise.all([
-      fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?types=animated`, { headers: { Authorization: `Bearer ${STEAMGRIDDB_API_KEY}` } }).catch(() => null),
-      fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?types=static`, { headers: { Authorization: `Bearer ${STEAMGRIDDB_API_KEY}` } }).catch(() => null)
-    ])
-
-    let animatedCovers = []
-    if (animRes && animRes.ok) {
-      const json = await animRes.json()
-      if (json.success && Array.isArray(json.data)) {
-        animatedCovers = json.data.map(g => ({
-          id: g.id,
-          thumb: g.thumb || g.url,
-          url: g.url,
-          type: 'animated',
-          width: g.width || 0,
-          height: g.height || 0
-        }))
-      }
-    }
-
-    let staticCovers = []
-    if (statRes && statRes.ok) {
-      const json = await statRes.json()
-      if (json.success && Array.isArray(json.data)) {
-        staticCovers = json.data.map(g => ({
-          id: g.id,
-          thumb: g.thumb || g.url,
-          url: g.url,
-          type: 'static',
-          width: g.width || 0,
-          height: g.height || 0
-        }))
-      }
-    }
-
-    return [...animatedCovers, ...staticCovers]
-  } catch (e) {
-    console.error('SteamGridDB fetch covers error:', e)
-    throw e
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.FETCH_RAWG_VIDEOS, async (event, gameName) => {
-  try {
-    if (!RAWG_API_KEY || RAWG_API_KEY === 'YOUR_RAWG_API_KEY') {
-      console.warn('RAWG API Key not configured.');
-      return { movies: [], youtube: [] };
-    }
-
-    // 1. Search game
-    const searchUrl = `https://api.rawg.io/api/games?search=${encodeURIComponent(gameName)}&key=${RAWG_API_KEY}`;
-    const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) throw new Error(`RAWG search failed: ${searchRes.statusText}`);
-    const searchJson = await searchRes.json();
-    
-    if (!searchJson.results || searchJson.results.length === 0) {
-      return { movies: [], youtube: [] };
-    }
-    
-    const gameId = searchJson.results[0].id;
-
-    // 2. Fetch movies (trailers)
-    const moviesUrl = `https://api.rawg.io/api/games/${gameId}/movies?key=${RAWG_API_KEY}`;
-    const moviesRes = await fetch(moviesUrl);
-    let movies = [];
-    if (moviesRes.ok) {
-      const moviesJson = await moviesRes.json();
-      movies = (moviesJson.results || []).map(movie => ({
-        id: movie.id,
-        name: movie.name,
-        preview: movie.preview,
-        videoUrl: movie.data?.max || movie.data?.['480'] || ''
-      })).filter(movie => movie.videoUrl);
-    }
-
-    // 3. Fetch youtube videos (gameplay/reviews)
-    const youtubeUrl = `https://api.rawg.io/api/games/${gameId}/youtube?key=${RAWG_API_KEY}`;
-    const youtubeRes = await fetch(youtubeUrl);
-    let youtube = [];
-    if (youtubeRes.ok) {
-      const youtubeJson = await youtubeRes.json();
-      youtube = (youtubeJson.results || []).map(yt => ({
-        id: yt.id,
-        externalId: yt.external_id,
-        title: yt.title,
-        thumbnails: yt.thumbnails
-      })).filter(yt => yt.externalId);
-    }
-
-    return { movies, youtube };
-  } catch (e) {
-    console.error('Error fetching RAWG videos:', e);
-    return { movies: [], youtube: [] };
-  }
-})
-
-
-ipcMain.handle(IPC_EVENTS.DOWNLOAD_COVER_URL, async (event, gameId, imageUrl) => {
-  if (!imageUrl) {
-    removeCoverFiles(gameId)
-    notifyRenderer()
-    return { success: true, coverUrl: '' }
-  }
-  const result = await downloadCoverFromUrl(gameId, imageUrl, notifyRenderer)
-  if (result.success) {
-    try {
-      const gameFilePath = path.join(gamesPath, `${gameId}.json`)
-      if (fs.existsSync(gameFilePath)) {
-        const data = JSON.parse(fs.readFileSync(gameFilePath, 'utf8'))
-        data.cover_type = result.isAnimated ? 'animated' : 'static'
-        data.last_animated_check = Date.now()
-        // Clean up legacy flag if present
-        delete data.animated_cover_checked
-        writeGame(gameId, data)
-      }
-    } catch (e) {
-      console.error('[BG-COVER] Failed to update cover metadata for manual selection:', e)
-    }
-  }
-  return result
-})
-
-ipcMain.handle(IPC_EVENTS.RUN_AUTO_SCAN, async (event, enabledLaunchers) => {
-  scanManager.startScan()
-  scanManager.sendProgress(0, 100, 'Initializing game library scan...', 'import')
-  try {
-
-    console.log('[AUTO-SCAN] Rerunning scan for enabled launchers:', enabledLaunchers)
-
-    // 1. Gather pre-scan game IDs directly from files on disk
-    const preScanIds = new Set()
-    if (fs.existsSync(gamesPath)) {
-      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
-      for (const file of files) {
-        try {
-          const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
-          if (!data.removed && !data.blacklisted) {
-            preScanIds.add(data.game_id)
-          }
-        } catch {}
-      }
-    }
-    
-    const promises = []
-    if (enabledLaunchers.steam) {
-      scanManager.sendProgress(2, 100, 'Scanning Steam registry & libraries...', 'import')
-      promises.push(scanSteamLibrary())
-    }
-    if (enabledLaunchers.gog) {
-      scanManager.sendProgress(4, 100, 'Scanning GOG registry & libraries...', 'import')
-      promises.push(scanGogLibrary())
-    }
-    if (enabledLaunchers.epic) {
-      scanManager.sendProgress(5, 100, 'Scanning Epic Games launcher...', 'import')
-      promises.push(scanEpicLibrary())
-    }
-    if (enabledLaunchers.ea) {
-      scanManager.sendProgress(6, 100, 'Scanning EA Desktop launcher...', 'import')
-      promises.push(scanEaLibrary())
-    }
-    if (enabledLaunchers.ubisoft) {
-      scanManager.sendProgress(8, 100, 'Scanning Ubisoft Connect launcher...', 'import')
-      promises.push(scanUbisoftLibrary())
-    }
-    if (enabledLaunchers.bnet) {
-      scanManager.sendProgress(9, 100, 'Scanning Battle.net launcher...', 'import')
-      promises.push(scanBattlenetLibrary())
-    }
-    if (enabledLaunchers.xbox) {
-      scanManager.sendProgress(9, 100, 'Scanning Xbox App...', 'import')
-      promises.push(scanXboxLibrary())
-    }
-    if (enabledLaunchers.amazon) {
-      scanManager.sendProgress(9, 100, 'Scanning Amazon Games...', 'import')
-      promises.push(scanAmazonLibrary())
-    }
-    
-    await Promise.all(promises)
-    console.log('[AUTO-SCAN] Scan rerun complete.')
-    notifyRenderer()
-
-    // 2. Gather post-scan game IDs directly from files on disk
-    const postScanIds = new Set()
-    if (fs.existsSync(gamesPath)) {
-      const files = fs.readdirSync(gamesPath).filter(f => f.endsWith('.json'))
-      for (const file of files) {
-        try {
-          const data = JSON.parse(fs.readFileSync(path.join(gamesPath, file), 'utf8'))
-          if (!data.removed && !data.blacklisted) {
-            postScanIds.add(data.game_id)
-          }
-        } catch {}
-      }
-    }
-
-    const importedCount = [...postScanIds].filter(id => !preScanIds.has(id)).length
-    const removedCount = [...preScanIds].filter(id => !postScanIds.has(id)).length
-    
-    scanManager.sendProgress(10, 100, 'Registry scan complete. Fetching static cover art...', 'import')
-    
-    await runBackgroundCoverDownloader(notifyRenderer, true).catch(err => {
-      console.error('[BG-COVER] Scan rerun static cover downloader failed:', err.message)
-    })
-    
-    scanManager.endScan()
-    scanManager.sendProgress(100, 100, 'Scan complete!', 'import')
-
-    // Kick off animated cover upgrades in the background (non-blocking)
-    runBackgroundCoverDownloader(notifyRenderer, false).catch(err => {
-      console.error('[BG-COVER] Scan rerun animated cover downloader failed:', err.message)
-    })
-    return { success: true, importedCount, removedCount }
-  } catch (e) {
-    console.error('run-auto-scan error:', e)
-    scanManager.endScan()
-    scanManager.sendProgress(0, 100, '', 'import')
-    return { success: false, error: e.message }
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.UPDATE_ALL_COVERS, async () => {
-  try {
-    console.log('[BG-COVER] Triggering covers update for library...')
-    runBackgroundCoverDownloader(notifyRenderer, true).then(() => {
-      runBackgroundCoverDownloader(notifyRenderer, false).catch(err => {
-        console.error('[BG-COVER] Background animated cover upgrade failed:', err.message)
-      })
-    }).catch(err => {
-      console.error('[BG-COVER] Background static cover downloader failed:', err.message)
-    })
-    return { success: true }
-  } catch (e) {
-    console.error('update-all-covers error:', e)
-    return { success: false, error: e.message }
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.REMOVE_ALL_GAMES, async () => {
-  try {
-    console.log('[DANGER] Wiping all games from database completely...')
-    scanManager.cancelAll()
-    deleteAllGames()
-    notifyRenderer()
-    return true
-  } catch (e) {
-    console.error('remove-all-games error:', e)
-    return false
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.UNDO_IMPORT, async (event, gamesToRestore) => {
-  try {
-    console.log('[UNDO] Undoing library scan / folder import...')
-    scanManager.cancelAll()
-    const existingIds = getAllGameIds()
-    const toDelete = calculateUndoDeletions(existingIds, gamesToRestore)
-    
-    for (const gameId of toDelete) {
-      console.log(`[UNDO] Deleting newly added game during undo: ${gameId}`)
-      deleteGameFile(gameId)
-    }
-    
-    notifyRenderer()
-    return true
-  } catch (e) {
-    console.error('undo-import error:', e)
-    return false
-  }
-})
-
-ipcMain.handle(IPC_EVENTS.OPEN_EXTERNAL_URL, async (event, url) => {
-  try {
-    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-      await shell.openExternal(url)
-      return true
-    }
-    return false
-  } catch (e) {
-    console.error('open-external-url error:', e)
-    return false
-  }
-})
-
-// ─── Auto Scan ────────────────────────────────────────────────────────────────
 function runAutoScan(enabledLaunchers = null) {
   const settings = getSettingsData()
   if (settings.auto_import === false && !enabledLaunchers) {
@@ -1086,21 +148,9 @@ function runAutoScan(enabledLaunchers = null) {
     })
 }
 
-// ─── App Lifecycle ────────────────────────────────────────────────────────────
+// App Lifecycle
 app.whenReady().then(() => {
-  if (!gotTheLock) return
-
-  // Resolve YouTube/YouTube-nocookie embed configuration blocks (Error 150/153)
-  session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*'] },
-    (details, callback) => {
-      details.requestHeaders['Referer'] = 'https://www.youtube.com'
-      callback({ requestHeaders: details.requestHeaders })
-    }
-  )
-
-  // Clean up any orphan cover files at startup
-
+  if (!state.gotTheLock) return
 
   // Register media:// protocol for serving local cover images
   protocol.handle('media', async (request) => {
@@ -1112,7 +162,13 @@ app.whenReady().then(() => {
       }
       const filePath = fileURLToPath(urlStr)
       const ext = path.extname(filePath).toLowerCase()
-      const mimeMap = { '.gif': 'image/gif', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.tiff': 'image/tiff' }
+      const mimeMap = {
+        '.gif': 'image/gif',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.tiff': 'image/tiff'
+      }
       const mimeType = mimeMap[ext] || 'image/png'
 
       const response = await net.fetch(pathToFileURL(filePath).toString())
@@ -1135,7 +191,7 @@ app.whenReady().then(() => {
   if (process.platform === 'win32' && systemPreferences.getAccentColor) {
     try {
       const raw = systemPreferences.getAccentColor()
-      lastAccentColor = raw.length === 8 ? raw.slice(0, 6) : raw
+      state.lastAccentColor = raw.length === 8 ? raw.slice(0, 6) : raw
     } catch (e) {
       console.error('Failed to get initial accent color:', e)
     }
@@ -1144,9 +200,9 @@ app.whenReady().then(() => {
   // Push live accent color updates to renderer when user changes Windows theme
   if (process.platform === 'win32' && systemPreferences.on) {
     systemPreferences.on('accent-color-changed', (event, newColor) => {
-      lastAccentColor = newColor
-      if (mainWindow) mainWindow.webContents.send(IPC_EVENTS.ACCENT_COLOR_CHANGED, newColor)
-      if (splashWindow) splashWindow.webContents.send(IPC_EVENTS.SET_ACCENT_COLOR, newColor)
+      state.lastAccentColor = newColor
+      if (state.mainWindow) state.mainWindow.webContents.send(IPC_EVENTS.ACCENT_COLOR_CHANGED, newColor)
+      if (state.splashWindow) state.splashWindow.webContents.send(IPC_EVENTS.SET_ACCENT_COLOR, newColor)
     })
   }
 
@@ -1160,99 +216,26 @@ app.whenReady().then(() => {
   
   if (currentVersion !== lastVersion) {
     const isNewer = (a, b) => {
-      const pa = a.split('.').map(Number);
-      const pb = b.split('.').map(Number);
+      const pa = a.split('.').map(Number)
+      const pb = b.split('.').map(Number)
       for (let i = 0; i < 3; i++) {
-        if (pa[i] > (pb[i] || 0)) return true;
-        if (pa[i] < (pb[i] || 0)) return false;
+        if (pa[i] > (pb[i] || 0)) return true
+        if (pa[i] < (pb[i] || 0)) return false
       }
-      return false;
-    };
+      return false
+    }
     
     if (isNewer(currentVersion, lastVersion) || lastVersion === '0.0.0') {
       saveSettingsData({ last_version_run: currentVersion })
       setTimeout(() => {
-        if (mainWindow) mainWindow.webContents.send(IPC_EVENTS.SHOW_WHATS_NEW, currentVersion)
+        if (state.mainWindow) state.mainWindow.webContents.send(IPC_EVENTS.SHOW_WHATS_NEW, currentVersion)
       }, 2000)
     }
   }
 
-  // Configure AutoUpdater
-  autoUpdater.autoDownload = true
-
-  autoUpdater.on('checking-for-update', () => {
-    console.log('[UPDATE] Checking for updates in the background...')
-  })
-
-  autoUpdater.on('update-available', (info) => {
-    console.log(`[UPDATE] Update v${info.version} available. Activating splash screen...`)
-    if (mainWindow) {
-      mainWindow.hide() // Transition main window out
-    }
-    if (!splashWindow) {
-      createSplashWindow()
-    }
-    // Update splash status
-    setTimeout(() => {
-      if (splashWindow) {
-        splashWindow.webContents.send(IPC_EVENTS.UPDATE_STATUS, `Update v${info.version} available! Downloading...`)
-      }
-    }, 500)
-  })
-
-  autoUpdater.on('update-not-available', () => {
-    console.log('[UPDATE] No update available. Enjoy playing!')
-    // Delay auto-scan by 2s to let the window finish rendering first
-    setTimeout(runAutoScan, 2000)
-  })
-
-  autoUpdater.on('download-progress', (progressObj) => {
-    if (splashWindow) {
-      const percent = progressObj.percent || 0
-      splashWindow.webContents.send(IPC_EVENTS.UPDATE_PROGRESS, percent)
-      splashWindow.webContents.send(IPC_EVENTS.UPDATE_STATUS, `Downloading update: ${Math.round(percent)}%`)
-    }
-  })
-
-  autoUpdater.on('update-downloaded', (info) => {
-    if (splashWindow) {
-      splashWindow.webContents.send(IPC_EVENTS.UPDATE_PROGRESS, 100)
-      splashWindow.webContents.send(IPC_EVENTS.UPDATE_STATUS, 'Update downloaded! Restarting...')
-    }
-    setTimeout(() => {
-      autoUpdater.quitAndInstall(true, true)
-    }, 1500)
-  })
-
-  autoUpdater.on('error', (err) => {
-    console.error('[UPDATE] AutoUpdater error:', err)
-    if (splashWindow) {
-      splashWindow.close()
-      if (mainWindow) {
-        mainWindow.show()
-        mainWindow.focus()
-      }
-    }
-    // Ensure scanning starts if it didn't already
-    setTimeout(runAutoScan, 2000)
-  })
-
-  // Start the update check or run auto-scan in development mode
-  if (!app.isPackaged) {
-    console.log('[DEV] Not packaged, skipping update check. Running auto-scan in 2 seconds...')
-    setTimeout(runAutoScan, 2000)
-  } else {
-    autoUpdater.checkForUpdates().catch((err) => {
-      console.error('Failed to trigger update check:', err)
-      setTimeout(runAutoScan, 2000)
-    })
-    // Check for updates every 30 minutes (ASAP updater)
-    setInterval(() => {
-      autoUpdater.checkForUpdates().catch((err) => {
-        console.error('[UPDATE] Background check failed:', err)
-      })
-    }, 30 * 60 * 1000)
-  }
+  // Set up IPC & Auto Updater
+  setupIpcHandlers(runAutoScan)
+  setupAutoUpdater(runAutoScan)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -1260,10 +243,6 @@ app.whenReady().then(() => {
 })
 
 app.on('quit', () => {
-  console.log('Cleaning orphan covers on quit...');
-  cleanOrphanCovers();
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  console.log('Cleaning orphan covers on quit...')
+  cleanOrphanCovers()
 })

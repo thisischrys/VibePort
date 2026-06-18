@@ -1,8 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { X, Info } from 'lucide-react'
+import { X } from 'lucide-react'
 import { styles } from '../../theme/styles.js'
-import CartridgeIcon from '../CartridgeIcon.jsx'
 
 const AboutModal = ({ accentHex, version, onClose }) => (
   <motion.div
@@ -18,6 +17,9 @@ const AboutModal = ({ accentHex, version, onClose }) => (
     onClick={onClose}
   >
     <motion.div
+      role="dialog"
+      aria-modal="true"
+      aria-label="About VibePort"
       initial={{ scale: 0.95, y: 15 }}
       animate={{ scale: 1, y: 0 }}
       exit={{ scale: 0.95, y: 15 }}

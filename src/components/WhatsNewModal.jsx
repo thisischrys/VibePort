@@ -38,6 +38,9 @@ export const WhatsNewModal = ({ isOpen, onClose, version }) => {
       {isOpen && (
         <div style={styles.modalOverlay} onClick={onClose}>
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="What's New"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
