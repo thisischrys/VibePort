@@ -20,7 +20,9 @@ const DEFAULTS = {
   window_maximized: false,
   sort_by: 'alphabetical',
   show_hidden: false,
-  show_sidebar: true
+  show_sidebar: true,
+  theme_mode: 'system',
+  custom_accent_color: 'c084fc'
 }
 
 

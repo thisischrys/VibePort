@@ -5,11 +5,33 @@
   <title>VibePort Launcher</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-color: #08070d;
+      --text-color: #f8fafc;
+      --sub-color: #94a3b8;
+      --border-color: rgba(255, 255, 255, 0.05);
+      --inner-border-color: rgba(255, 255, 255, 0.02);
+      --progress-bg: rgba(255, 255, 255, 0.04);
+      --accent-color: #8b5cf6;
+      --glow-opacity: 0.3;
+    }
+    
+    [data-theme="light"] {
+      --bg-color: #fafafa;
+      --text-color: #1a1a1a;
+      --sub-color: #77767b;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --inner-border-color: rgba(0, 0, 0, 0.04);
+      --progress-bg: rgba(0, 0, 0, 0.04);
+      --accent-color: #613583;
+      --glow-opacity: 0.15;
+    }
+
     body {
       margin: 0;
       padding: 0;
-      background-color: #08070d;
-      color: #f8fafc;
+      background-color: var(--bg-color);
+      color: var(--text-color);
       font-family: 'Outfit', sans-serif;
       display: flex;
       flex-direction: column;
@@ -18,11 +40,12 @@
       height: 100vh;
       overflow: hidden;
       box-sizing: border-box;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
       border-radius: 16px;
       -webkit-app-region: drag;
       user-select: none;
       -webkit-user-select: none;
+      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
     }
     .logo-container {
       display: flex;
@@ -35,11 +58,12 @@
       width: 160px;
       height: 160px;
       border-radius: 50%;
-      background: var(--accent-color, #8b5cf6);
+      background: var(--accent-color);
       filter: blur(60px);
-      opacity: 0.3;
+      opacity: var(--glow-opacity);
       z-index: 0;
       pointer-events: none;
+      transition: background-color 0.25s ease, opacity 0.25s ease;
     }
     .title {
       font-size: 32px;
@@ -47,44 +71,46 @@
       letter-spacing: -0.8px;
       margin: 0;
       z-index: 1;
-      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     .subtitle {
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 2px;
       text-transform: uppercase;
-      color: var(--accent-color, #c084fc);
+      color: var(--accent-color);
       opacity: 0.8;
       margin-top: 6px;
       z-index: 1;
+      transition: color 0.25s ease;
     }
     .status {
       font-size: 13px;
       font-weight: 600;
-      color: #94a3b8;
+      color: var(--sub-color);
       margin-bottom: 16px;
       height: 20px;
       z-index: 1;
-      transition: all 0.2s ease;
+      transition: color 0.25s ease;
     }
     .progress-container {
       width: 75%;
       height: 5px;
-      background: rgba(255, 255, 255, 0.04);
+      background: var(--progress-bg);
       border-radius: 99px;
       overflow: hidden;
       position: relative;
-      border: 1px solid rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--inner-border-color);
       z-index: 1;
+      transition: background-color 0.25s ease, border-color 0.25s ease;
     }
     .progress-bar {
       width: 0%;
       height: 100%;
-      background: var(--accent-color, #8b5cf6);
+      background: var(--accent-color);
       border-radius: 99px;
-      box-shadow: 0 0 12px var(--accent-color, #8b5cf6);
-      transition: width 0.15s ease-out;
+      box-shadow: 0 0 12px var(--accent-color);
+      transition: width 0.15s ease-out, background-color 0.25s ease, box-shadow 0.25s ease;
     }
   </style>
 </head>
@@ -116,6 +142,11 @@
       window.api.onUpdateProgress((percent) => {
         const percentage = Math.min(Math.max(percent, 0), 100);
         document.getElementById('bar').style.width = percentage + '%';
+      });
+
+      // Handle theme update
+      window.api.onThemeChanged((isDark) => {
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
       });
     }
   </script>

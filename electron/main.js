@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, net, systemPreferences } from 'electron'
+import { app, BrowserWindow, protocol, net, systemPreferences, nativeTheme } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -8,6 +8,20 @@ const __dirname = path.dirname(__filename)
 
 // Detect if running in test mode
 const isTestMode = process.argv.includes('--test-mode')
+
+// Register media:// protocol as privileged to allow fetch and prevent canvas tainting
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'media',
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true
+    }
+  }
+])
 
 // Override userData path to use proper capitalization
 if (isTestMode) {
@@ -204,6 +218,19 @@ app.whenReady().then(() => {
       if (state.mainWindow) state.mainWindow.webContents.send(IPC_EVENTS.ACCENT_COLOR_CHANGED, newColor)
       if (state.splashWindow) state.splashWindow.webContents.send(IPC_EVENTS.SET_ACCENT_COLOR, newColor)
     })
+  }
+
+  // Push OS theme changes to renderer
+  nativeTheme.on('updated', () => {
+    const isDark = nativeTheme.shouldUseDarkColors
+    if (state.mainWindow) state.mainWindow.webContents.send(IPC_EVENTS.THEME_CHANGED, isDark)
+    if (state.splashWindow) state.splashWindow.webContents.send(IPC_EVENTS.THEME_CHANGED, isDark)
+  })
+
+  // Restore saved theme mode preference
+  const savedSettings = getSettingsData()
+  if (savedSettings.theme_mode && savedSettings.theme_mode !== 'system') {
+    nativeTheme.themeSource = savedSettings.theme_mode
   }
 
   // Initialize main window immediately

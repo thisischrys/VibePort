@@ -27,6 +27,9 @@ export const IPC_EVENTS = {
   GET_ACCENT_COLOR_SYNC: 'get-accent-color-sync',
   ACCENT_COLOR_CHANGED: 'accent-color-changed',
   SET_ACCENT_COLOR: 'set-accent-color',
+  GET_NATIVE_THEME: 'get-native-theme',
+  SET_THEME_MODE: 'set-theme-mode',
+  THEME_CHANGED: 'theme-changed',
 
   // Dialogs
   SELECT_FOLDER: 'select-folder',

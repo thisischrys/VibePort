@@ -19,7 +19,8 @@ export const GameGrid = React.memo(({
   emptyIcon: EmptyIcon,
   emptyTitle,
   emptySub,
-  emptyAction
+  emptyAction,
+  isCoverDownloading
 }) => {
   if (loading) {
     return (
@@ -59,6 +60,7 @@ export const GameGrid = React.memo(({
           isOpen={activeMenuGameId === game.game_id}
           setActiveMenuGameId={setActiveMenuGameId}
           coverLaunchesGame={coverLaunchesGame}
+          isCoverDownloading={isCoverDownloading}
         />
       ))}
     </div>

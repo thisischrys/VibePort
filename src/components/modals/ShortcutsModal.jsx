@@ -96,19 +96,19 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '110px', flexShrink: 0 }}>
         {shortcut.keys.map((key, kIndex) => (
           <React.Fragment key={kIndex}>
-            {kIndex > 0 && <span style={{ color: '#8e8e93', fontSize: '12px', fontWeight: '500' }}>+</span>}
+            {kIndex > 0 && <span style={{ color: 'var(--on-surface-label)', fontSize: '12px', fontWeight: '500' }}>+</span>}
             <kbd
               className="gtk-keycap"
               style={{
-                backgroundColor: '#38383a',
-                border: '1px solid rgba(255,255,255,0.06)',
+                backgroundColor: 'var(--active-bg)',
+                border: '1px solid var(--input-border)',
                 borderBottomWidth: '2.5px',
                 borderBottomColor: 'rgba(0,0,0,0.35)',
                 borderRadius: '6px',
                 padding: '4px 9px',
                 fontSize: '11.5px',
                 fontWeight: '700',
-                color: '#ffffff',
+                color: 'var(--on-surface)',
                 fontFamily: "system-ui, -apple-system, sans-serif",
                 minWidth: '22px',
                 textAlign: 'center',
@@ -126,7 +126,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
       </div>
       <span
         style={{
-          color: '#e5e7eb',
+          color: 'var(--on-surface-secondary)',
           fontSize: '13px',
           fontWeight: '500',
           marginLeft: '12px',
@@ -174,7 +174,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               fontFamily: "'Outfit', sans-serif",
               fontSize: '14.5px',
               fontWeight: '700',
-              color: '#cbd5e1',
+              color: 'var(--on-surface-secondary)',
               margin: 0,
               letterSpacing: '-0.3px',
             }}
@@ -187,11 +187,11 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               width: '30px',
               height: '30px',
               borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.06)',
+              backgroundColor: 'var(--surface-elevated)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
+              color: 'var(--on-surface)',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
               WebkitAppRegion: 'no-drag',
@@ -212,7 +212,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               style={{
                 fontSize: '14.5px',
                 fontWeight: '700',
-                color: '#ffffff',
+                color: 'var(--on-surface)',
                 marginBottom: '12px',
                 fontFamily: "'Outfit', sans-serif",
               }}
@@ -230,7 +230,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               style={{
                 fontSize: '14.5px',
                 fontWeight: '700',
-                color: '#ffffff',
+                color: 'var(--on-surface)',
                 marginBottom: '12px',
                 fontFamily: "'Outfit', sans-serif",
               }}
@@ -257,7 +257,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.15)',
+        backgroundColor: 'var(--surface-overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -279,7 +279,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
           background: 'var(--bg-mid, rgba(15, 12, 28, 0.95))',
           border: '1px solid var(--accent-border, rgba(139, 92, 246, 0.22))',
           borderRadius: '16px',
-          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6)',
+          boxShadow: 'var(--shadow-xl)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -311,7 +311,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               fontFamily: "'Outfit', sans-serif",
               fontSize: '14.5px',
               fontWeight: '700',
-              color: '#cbd5e1',
+              color: 'var(--on-surface-secondary)',
               margin: 0,
               letterSpacing: '-0.3px',
             }}
@@ -324,11 +324,11 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               width: '30px',
               height: '30px',
               borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.06)',
+              backgroundColor: 'var(--surface-elevated)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
+              color: 'var(--on-surface)',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -348,7 +348,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               style={{
                 fontSize: '14.5px',
                 fontWeight: '700',
-                color: '#ffffff',
+                color: 'var(--on-surface)',
                 marginBottom: '12px',
                 fontFamily: "'Outfit', sans-serif",
               }}
@@ -366,7 +366,7 @@ export const ShortcutsModal = ({ onClose, standalone = false }) => {
               style={{
                 fontSize: '14.5px',
                 fontWeight: '700',
-                color: '#ffffff',
+                color: 'var(--on-surface)',
                 marginBottom: '12px',
                 fontFamily: "'Outfit', sans-serif",
               }}

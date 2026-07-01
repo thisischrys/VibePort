@@ -51,7 +51,7 @@ const AboutModal = ({ accentHex, version, onClose }) => (
         <div
           style={{
             cursor: 'pointer',
-            color: '#94a3b8',
+            color: 'var(--on-surface-muted)',
             transition: 'color 0.2s',
             marginRight: '-8px',
             WebkitAppRegion: 'no-drag', // Keep close button clickable
@@ -71,7 +71,7 @@ const AboutModal = ({ accentHex, version, onClose }) => (
           fontFamily: "'Outfit', sans-serif",
           fontSize: '22px',
           fontWeight: '700',
-          color: '#f8fafc',
+          color: 'var(--on-surface)',
           letterSpacing: '-0.5px',
           margin: 0
         }}>
@@ -95,7 +95,7 @@ const AboutModal = ({ accentHex, version, onClose }) => (
       {/* Description */}
       <p style={{
         fontSize: '13px',
-        color: '#94a3b8',
+        color: 'var(--on-surface-muted)',
         lineHeight: '1.6',
         margin: '8px 0 16px 0',
         fontWeight: '500'

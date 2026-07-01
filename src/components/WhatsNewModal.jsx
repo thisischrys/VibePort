@@ -67,7 +67,7 @@ export const WhatsNewModal = ({ isOpen, onClose, version }) => {
               margin: '0 0 24px 0',
               fontSize: '24px',
               fontWeight: '600',
-              color: '#f8fafc',
+              color: 'var(--on-surface)',
               letterSpacing: '-0.5px'
             }}>
               What's New in {version}
@@ -76,7 +76,7 @@ export const WhatsNewModal = ({ isOpen, onClose, version }) => {
             <div style={{
               overflowY: 'auto',
               paddingRight: '16px',
-              color: '#cbd5e1',
+              color: 'var(--on-surface-secondary)',
               fontSize: '14.5px',
               lineHeight: '1.6'
             }} className="markdown-content">

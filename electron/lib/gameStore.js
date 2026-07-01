@@ -105,7 +105,7 @@ export async function loadAllGames() {
 
         if (data.removed || data.blacklisted) return null
 
-        const coverUrl = coverMap[data.game_id] || null
+        const coverUrl = coverMap[data.game_id] || data.coverUrl || null
         return { ...data, coverUrl }
       } catch (err) {
         console.error('Error parsing game file:', file, err)

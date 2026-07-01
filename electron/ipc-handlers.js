@@ -1,4 +1,4 @@
-import { ipcMain, dialog, systemPreferences, BrowserWindow, shell } from 'electron'
+import { ipcMain, dialog, systemPreferences, nativeTheme, BrowserWindow, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { spawn, exec } from 'node:child_process'
@@ -255,6 +255,16 @@ export function setupIpcHandlers(runAutoScan) {
       console.error('get-accent-color-sync error:', e)
       event.returnValue = null
     }
+  })
+
+  ipcMain.handle(IPC_EVENTS.GET_NATIVE_THEME, () => {
+    return nativeTheme.shouldUseDarkColors
+  })
+
+  ipcMain.handle(IPC_EVENTS.SET_THEME_MODE, (event, mode) => {
+    // mode: 'system' | 'light' | 'dark'
+    nativeTheme.themeSource = mode
+    return nativeTheme.shouldUseDarkColors
   })
 
   ipcMain.handle(IPC_EVENTS.SELECT_FOLDER, async () => {

@@ -63,6 +63,21 @@ export class IpcManager {
     return window.api.onAccentColorChanged(callback);
   }
 
+  static getNativeTheme() {
+    return window.api?.getNativeTheme() ?? Promise.resolve(true);
+  }
+
+  static setThemeMode(mode) {
+    return window.api?.setThemeMode(mode) ?? Promise.resolve();
+  }
+
+  static onThemeChanged(callback) {
+    if (!window.api?.onThemeChanged) {
+      return () => {};
+    }
+    return window.api.onThemeChanged(callback);
+  }
+
   static selectFolder() {
     return window.api?.selectFolder() ?? Promise.resolve(null);
   }

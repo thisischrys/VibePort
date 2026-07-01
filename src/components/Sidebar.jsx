@@ -59,7 +59,7 @@ export const Sidebar = React.memo(({
         ...styles.sidebar,
         width: visible ? '260px' : '0px',
         padding: visible ? '16px 0 24px 0' : '0',
-        borderRight: visible ? '1px solid rgba(255,255,255,0.04)' : 'none',
+        borderRight: visible ? '1px solid var(--outline)' : 'none',
         opacity: visible ? 1 : 0,
         overflow: 'hidden',
         transition: (showHidden || viewState === 'details') 

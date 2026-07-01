@@ -4,11 +4,42 @@ import { Play, EyeOff, Edit3, MoreVertical, Trash2, Eye } from 'lucide-react'
 import { styles } from '../theme/styles.js'
 import { LauncherIcon } from './LauncherIcon.jsx'
 
-export const GameCard = React.memo(({ game, isHidden, hasFailedCover, cardFontSize, onLaunch, onEdit, onDetails, onToggleHide, onDelete, onImageError, isOpen, setActiveMenuGameId, coverLaunchesGame }) => {
+export const GameCard = React.memo(({ game, isHidden, hasFailedCover, cardFontSize, onLaunch, onEdit, onDetails, onToggleHide, onDelete, onImageError, isOpen, setActiveMenuGameId, coverLaunchesGame, isCoverDownloading }) => {
   const hasCover = game.coverUrl && !hasFailedCover;
   
-  // Hide game card until we have a cover OR we have finished all background checks (failed)
-  const isImageLoading = game.coverUrl && !hasCover;
+  // Show skeleton while cover download is still in progress and we have no cover or failure
+  const isImageLoading = !hasCover && !hasFailedCover && isCoverDownloading;
+  
+  if (isImageLoading) {
+    return (
+      <motion.div
+        layoutId={`game-card-${game.game_id}`}
+        style={{
+          ...styles.gameCard,
+          fontSize: cardFontSize,
+          outline: 'none'
+        }}
+      >
+        <div style={styles.coverWrapper}>
+          <div className="skeleton-shimmer" style={{
+            width: '200px',
+            height: '300px',
+            borderTopLeftRadius: '12px',
+            borderTopRightRadius: '12px',
+            background: 'linear-gradient(135deg, var(--placeholder-start) 0%, var(--placeholder-end) 100%)',
+          }} />
+        </div>
+        <div style={styles.cardTitleBar}>
+          <div style={{
+            width: '70%',
+            height: '14px',
+            borderRadius: '4px',
+            background: 'var(--surface-elevated)',
+          }} />
+        </div>
+      </motion.div>
+    )
+  }
 
   const handleCardClick = (e) => {
     if (coverLaunchesGame) {
@@ -70,100 +101,99 @@ export const GameCard = React.memo(({ game, isHidden, hasFailedCover, cardFontSi
 
         {/* ── Hover Overlay Controls ── */}
         <div className="card-overlay" style={styles.cardOverlay}>
-          {/* Play Button Overlay */}
+          {/* Top-Left Play/Details Button */}
           <div 
-            style={styles.playButtonOverlay}
-            onClick={handleLaunchClick}
+            className="play-osd-btn"
+            style={{ ...styles.osdBtn, ...styles.osdPlayBtn }}
+            onClick={coverLaunchesGame ? handleOverlayDetailsClick : handleLaunchClick}
+            title={coverLaunchesGame ? "Details" : "Play"}
           >
-            <Play size={28} color="#ffffff" style={styles.playIcon} />
+            {coverLaunchesGame ? (
+              <Eye size={16} color="#ffffff" />
+            ) : (
+              <Play size={16} color="#ffffff" fill="#ffffff" style={{ marginLeft: '2.5px' }} />
+            )}
           </div>
 
-          {/* Small Bottom Info/More Bar */}
-          <div style={styles.bottomOverlayBar}>
-            <div style={styles.cardLauncherBadge}>
-              <LauncherIcon source={game.source} style={styles.launcherIconMini} />
-            </div>
-            
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <div 
-                className="edit-overlay-btn"
-                style={styles.overlayEditBtn}
-                onClick={handleOverlayDetailsClick}
-              >
-                {coverLaunchesGame ? <Play size={12} color="#ffffff" /> : <Eye size={12} color="#ffffff" />}
-              </div>
-              <div 
-                className="edit-overlay-btn"
-                style={styles.overlayEditBtn}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setActiveMenuGameId(isOpen ? null : game.game_id)
-                }}
-              >
-                <MoreVertical size={12} color="#ffffff" />
-              </div>
-            </div>
+          {/* Top-Right Menu Button */}
+          <div 
+            className="menu-osd-btn"
+            style={{ 
+              ...styles.osdBtn, 
+              ...styles.osdMenuBtn,
+              opacity: isOpen ? 1 : undefined,
+              transform: isOpen ? 'scale(1)' : undefined,
+              backgroundColor: isOpen ? 'var(--osd-bg-active)' : undefined
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setActiveMenuGameId(isOpen ? null : game.game_id)
+            }}
+            title="Menu"
+          >
+            <MoreVertical size={16} color="#ffffff" />
           </div>
         </div>
+
+        {/* ── Inline Context Dropdown Menu ── */}
+        {isOpen && (
+          <div className="card-menu-container" style={styles.cardMenu}>
+            <div style={styles.cardMenuArrow} />
+            <div 
+              className="gtk-menu-item"
+              style={styles.gtkMenuItem}
+              onClick={(e) => {
+                e.stopPropagation()
+                onLaunch(game, e)
+                setActiveMenuGameId(null)
+              }}
+            >
+              Play
+            </div>
+            
+            <div 
+              className="gtk-menu-item"
+              style={styles.gtkMenuItem}
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(game, e)
+                setActiveMenuGameId(null)
+              }}
+            >
+              Edit
+            </div>
+
+            <div 
+              className="gtk-menu-item"
+              style={styles.gtkMenuItem}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleHide(game, e)
+                setActiveMenuGameId(null)
+              }}
+            >
+              {isHidden ? 'Unhide' : 'Hide'}
+            </div>
+
+            <div 
+              className="gtk-menu-item"
+              style={styles.gtkMenuItem}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(game, e)
+                setActiveMenuGameId(null)
+              }}
+            >
+              Remove
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ── Title Label underneath cover (hidden via styles usually but keeps semantics) ── */}
+      {/* ── Title Label ── */}
       <div style={styles.cardTitleBar}>
         <span className="game-title" style={styles.cardTitleText}>{game.name}</span>
       </div>
-
-      {/* ── Inline Context Dropdown Menu ── */}
-      {isOpen && (
-        <div className="card-menu-container" style={styles.cardMenu}>
-          <div 
-            className="gtk-menu-item"
-            style={styles.gtkMenuItem}
-            onClick={(e) => {
-              e.stopPropagation()
-              onLaunch(game, e)
-              setActiveMenuGameId(null)
-            }}
-          >
-            Play
-          </div>
-          
-          <div 
-            className="gtk-menu-item"
-            style={styles.gtkMenuItem}
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit(game, e)
-              setActiveMenuGameId(null)
-            }}
-          >
-            Edit
-          </div>
-
-          <div 
-            className="gtk-menu-item"
-            style={styles.gtkMenuItem}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleHide(game, e)
-              setActiveMenuGameId(null)
-            }}
-          >
-            {isHidden ? 'Unhide' : 'Hide'}
-          </div>
-
-          <div 
-            className="gtk-menu-item"
-            style={styles.gtkMenuItem}
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(game, e)
-              setActiveMenuGameId(null)
-            }}
-          >
-            Remove
-          </div>
-        </div>
-      )}
     </motion.div>
   )
 })

@@ -31,8 +31,8 @@ export const ScanOverlay = React.memo(({ isScanning, scanMode, scanProgress, acc
         exit={{ scale: 0.95, y: 15 }}
         style={{
           width: '380px',
-          backgroundColor: 'rgba(28, 28, 30, 0.94)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundColor: 'var(--scan-bg)',
+          border: '1px solid var(--outline-variant)',
           borderRadius: '16px',
           padding: '32px 24px',
           boxShadow: '0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px var(--accent-glow-faint)',
@@ -48,7 +48,7 @@ export const ScanOverlay = React.memo(({ isScanning, scanMode, scanProgress, acc
           fontFamily: "'Outfit', sans-serif",
           fontSize: '18px',
           fontWeight: '700',
-          color: '#f8fafc',
+          color: 'var(--on-surface)',
           letterSpacing: '-0.3px'
         }}>
           {scanMode === 'folder' ? 'Adding Games...' : 'Importing Games...'}
@@ -58,7 +58,7 @@ export const ScanOverlay = React.memo(({ isScanning, scanMode, scanProgress, acc
         <div style={{
           width: '100%',
           height: '6px',
-          backgroundColor: 'rgba(255, 255, 255, 0.08)',
+          backgroundColor: 'var(--outline-variant)',
           borderRadius: '3px',
           position: 'relative',
           overflow: 'hidden'

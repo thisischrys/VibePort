@@ -144,9 +144,9 @@ const EditGameModal = ({
                 fontSize: '13.5px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                color: '#cbd5e1',
+                border: '1px solid var(--glass-border)',
+                backgroundColor: 'var(--surface-variant)',
+                color: 'var(--on-surface-secondary)',
                 zIndex: 10,
                 WebkitAppRegion: 'no-drag',
               }}
@@ -161,7 +161,7 @@ const EditGameModal = ({
               fontFamily: "'Outfit', sans-serif",
               fontSize: '15px',
               fontWeight: '700',
-              color: '#f8fafc',
+              color: 'var(--on-surface)',
               pointerEvents: 'none',
             }}>
               Game Details
@@ -175,8 +175,8 @@ const EditGameModal = ({
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: hasChanges ? 'pointer' : 'not-allowed',
-                backgroundColor: hasChanges ? `#${accentHex}` : 'rgba(255, 255, 255, 0.04)',
-                borderColor: hasChanges ? `#${accentHex}` : 'rgba(255, 255, 255, 0.05)',
+                backgroundColor: hasChanges ? `#${accentHex}` : 'var(--surface-variant)',
+                borderColor: hasChanges ? `#${accentHex}` : 'var(--glass-border)',
                 color: hasChanges ? '#ffffff' : 'rgba(255, 255, 255, 0.3)',
                 boxShadow: hasChanges ? `0 0 15px rgba(${hexToRgb(accentHex)}, 0.3)` : 'none',
                 opacity: hasChanges ? 1 : 0.4,
@@ -201,7 +201,7 @@ const EditGameModal = ({
               flexDirection: 'column',
               gap: '16px',
               boxSizing: 'border-box',
-              borderRight: showSgdb ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
+              borderRight: showSgdb ? '1px solid var(--outline-variant)' : 'none',
               transition: 'border-right 0.3s',
               overflowY: 'auto'
             }}>
@@ -213,9 +213,9 @@ const EditGameModal = ({
                   height: '300px',
                   borderRadius: '12px',
                   overflow: 'hidden',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
+                  backgroundColor: 'var(--glass-bg)',
+                  border: '1px solid var(--outline-variant)',
+                  boxShadow: 'var(--shadow-lg)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -261,12 +261,12 @@ const EditGameModal = ({
                           height: '32px',
                           borderRadius: '50%',
                           backgroundColor: 'rgba(30, 30, 30, 0.85)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          border: '1px solid var(--outline-strong)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           cursor: 'pointer',
-                          color: '#f8fafc',
+                          color: 'var(--on-surface)',
                           boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
                         }}
                         title="Remove Cover"
@@ -291,12 +291,12 @@ const EditGameModal = ({
                         height: '32px',
                         borderRadius: '50%',
                         backgroundColor: 'rgba(30, 30, 30, 0.85)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        border: '1px solid var(--outline-strong)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         cursor: 'pointer',
-                        color: '#f8fafc',
+                        color: 'var(--on-surface)',
                         boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
                       }}
                       title="Change Cover from Disk"
@@ -311,12 +311,12 @@ const EditGameModal = ({
                         height: '32px',
                         borderRadius: '50%',
                         backgroundColor: showSgdb ? `#${accentHex}` : 'rgba(30, 30, 30, 0.85)',
-                        border: showSgdb ? `1px solid #${accentHex}` : '1px solid rgba(255, 255, 255, 0.1)',
+                        border: showSgdb ? `1px solid #${accentHex}` : '1px solid var(--outline-strong)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         cursor: 'pointer',
-                        color: '#f8fafc',
+                        color: 'var(--on-surface)',
                         boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
                         transition: 'background-color 0.2s'
                       }}
@@ -352,7 +352,7 @@ const EditGameModal = ({
                       fontSize: '13px',
                       fontWeight: '600',
                       cursor: 'pointer',
-                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                      border: '1px solid var(--outline-variant)'
                     }}
                     onClick={async () => {
                       try {

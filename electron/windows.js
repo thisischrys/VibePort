@@ -1,4 +1,4 @@
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow, shell, nativeTheme } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -155,6 +155,7 @@ export function createSplashWindow() {
 
   state.splashWindow.webContents.on('did-finish-load', () => {
     state.splashWindow.webContents.send(IPC_EVENTS.SET_ACCENT_COLOR, accentColor)
+    state.splashWindow.webContents.send(IPC_EVENTS.THEME_CHANGED, nativeTheme.shouldUseDarkColors)
   })
 
   state.splashWindow.on('closed', () => {

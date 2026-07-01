@@ -33,8 +33,8 @@ VibePort is configured with fully automated CI/CD and background auto-updates vi
    ```
 3. **Push a New Tag**: Create and push a tag matching the new version:
    ```bash
-   git tag v1.0.1
-   git push origin v1.0.1
+   git tag 1.0.1
+   git push origin 1.0.1
    ```
 4. **Publish Draft Release**:
    * Pushing the tag automatically triggers the **Build and Release** workflow on GitHub Actions.

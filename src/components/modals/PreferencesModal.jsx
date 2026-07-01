@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Search, Home, Download, CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { X, Search, Home, Download, CheckCircle2, AlertCircle, Info, Sun, Moon, Monitor } from 'lucide-react'
 import { LauncherIcon } from '../LauncherIcon.jsx'
 import { IpcManager } from '../../shared/IpcManager.js'
 
@@ -44,7 +44,10 @@ export const PreferencesModal = ({
   onUndo,
   initialTab = 'general',
   settings = {},
-  updateSettings
+  updateSettings,
+  themeMode = 'system',
+  setThemeMode,
+  isDark = true
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab) // 'general' | 'import'
   const [modalToast, setModalToast] = useState(null)
@@ -68,50 +71,163 @@ export const PreferencesModal = ({
     onRemoveAllGames(triggerModalToast)
   }
 
-  const renderGeneralTab = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Behavior Section */}
-      <div>
-        <h4 style={{ fontSize: '12px', fontWeight: '700', color: '#8e8e93', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
-          Behavior
-        </h4>
-        <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
-          {/* Row 1: Exit After Launch */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Exit After Launching Games</span>
+  const renderGeneralTab = () => {
+    const presets = isDark ? [
+      'c084fc', // purple
+      '60a5fa', // blue
+      '34d399', // green
+      'fb923c', // orange
+      'f87171', // red
+    ] : [
+      '613583', // purple
+      '1c71d8', // blue
+      '2ec27e', // green
+      'e66100', // orange
+      'e01b24', // red
+    ]
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Appearance Section */}
+        <div>
+          <h4 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--on-surface-label)', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
+            Appearance
+          </h4>
+          <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid var(--outline)', overflow: 'hidden' }}>
+            {/* Theme Mode Segmented Control */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Theme</span>
+              </div>
+              <div style={{
+                display: 'flex',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '1px solid var(--outline-variant, rgba(255,255,255,0.08))',
+                backgroundColor: 'var(--surface-variant, rgba(255,255,255,0.04))'
+              }}>
+                {[
+                  { value: 'system', label: 'System', icon: Monitor },
+                  { value: 'light', label: 'Light', icon: Sun },
+                  { value: 'dark', label: 'Dark', icon: Moon }
+                ].map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setThemeMode(value)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.15s ease',
+                      backgroundColor: themeMode === value
+                        ? (accentHex ? `#${accentHex}` : 'var(--accent, #8b5cf6)')
+                        : 'transparent',
+                      color: themeMode === value ? '#ffffff' : 'var(--on-surface-muted, #94a3b8)',
+                    }}
+                  >
+                    <Icon size={13} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <GtkSwitch active={!!settings.exit_after_launch} onChange={() => updateSettings({ exit_after_launch: !settings.exit_after_launch })} accentColor={accentHex} />
-          </div>
-          {/* Row 1.5: Cover Image Launches Game */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Cover Image Launches Game</span>
-              <span style={{ fontSize: '10.5px', color: '#8e8e93', fontWeight: '500' }}>Swaps the behavior of the cover image and the play button</span>
-            </div>
-            <GtkSwitch active={!!settings.cover_launches_game} onChange={() => updateSettings({ cover_launches_game: !settings.cover_launches_game })} accentColor={accentHex} />
-          </div>
-          {/* Row 2: Use Windows Accent Color */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Use Windows Theme Color</span>
-            </div>
-            <GtkSwitch active={!!settings.use_windows_accent} onChange={handleToggleAccent} accentColor={accentHex} />
           </div>
         </div>
-      </div>
+
+        {/* Behavior Section */}
+        <div>
+          <h4 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--on-surface-label)', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
+            Behavior
+          </h4>
+          <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid var(--outline)', overflow: 'hidden' }}>
+            {/* Row 1: Exit After Launch */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--outline)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Exit After Launching Games</span>
+              </div>
+              <GtkSwitch active={!!settings.exit_after_launch} onChange={() => updateSettings({ exit_after_launch: !settings.exit_after_launch })} accentColor={accentHex} />
+            </div>
+            {/* Row 1.5: Cover Image Launches Game */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--outline)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Cover Image Launches Game</span>
+                <span style={{ fontSize: '10.5px', color: 'var(--on-surface-label)', fontWeight: '500' }}>Swaps the behavior of the cover image and the play button</span>
+              </div>
+              <GtkSwitch active={!!settings.cover_launches_game} onChange={() => updateSettings({ cover_launches_game: !settings.cover_launches_game })} accentColor={accentHex} />
+            </div>
+            {/* Row 2: Use Windows Accent Color */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: !settings.use_windows_accent ? '1px solid var(--outline)' : 'none' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Use Windows Theme Color</span>
+              </div>
+              <GtkSwitch active={!!settings.use_windows_accent} onChange={handleToggleAccent} accentColor={accentHex} />
+            </div>
+            {/* Custom Accent Color Picker */}
+            {!settings.use_windows_accent && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Accent Color</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {presets.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => updateSettings({ custom_accent_color: color })}
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: `#${color}`,
+                        border: settings.custom_accent_color === color ? '2px solid var(--on-surface)' : '1px solid var(--outline-strong)',
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        padding: 0
+                      }}
+                    />
+                  ))}
+                  <div style={{ position: 'relative', width: '20px', height: '20px', borderRadius: '50%', overflow: 'hidden', border: !presets.includes(settings.custom_accent_color) ? '2px solid var(--on-surface)' : '1px solid var(--outline-strong)', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                    <input
+                      type="color"
+                      value={`#${settings.custom_accent_color || (isDark ? 'c084fc' : '613583')}`}
+                      onChange={(e) => updateSettings({ custom_accent_color: e.target.value.replace('#', '') })}
+                      style={{
+                        position: 'absolute',
+                        top: '-5px',
+                        left: '-5px',
+                        width: '30px',
+                        height: '30px',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        background: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
       {/* Images Section */}
       <div>
-        <h4 style={{ fontSize: '12px', fontWeight: '700', color: '#8e8e93', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
+        <h4 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--on-surface-label)', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
           Images
         </h4>
-        <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+        <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid var(--outline)', overflow: 'hidden' }}>
           {/* Row 1: Update Covers */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Update Covers</span>
-              <span style={{ fontSize: '10.5px', color: '#8e8e93', fontWeight: '500' }}>Fetch covers for games already in your library</span>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Update Covers</span>
+              <span style={{ fontSize: '10.5px', color: 'var(--on-surface-label)', fontWeight: '500' }}>Fetch covers for games already in your library</span>
             </div>
             <button
               type="button"
@@ -122,9 +238,9 @@ export const PreferencesModal = ({
                 fontSize: '12px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                backgroundColor: '#3a3a3c',
+                backgroundColor: 'var(--active-bg)',
                 border: 'none',
-                color: '#ffffff',
+                color: 'var(--on-surface)',
                 transition: 'background-color 0.15s ease',
               }}
               onClick={() => onUpdateCovers(triggerModalToast)}
@@ -137,7 +253,7 @@ export const PreferencesModal = ({
 
       {/* Danger Zone Section */}
       <div>
-        <h4 style={{ fontSize: '12px', fontWeight: '700', color: '#8e8e93', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
+        <h4 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--on-surface-label)', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
           Danger Zone
         </h4>
         <div
@@ -155,28 +271,29 @@ export const PreferencesModal = ({
           className="gtk-danger-btn"
           onClick={handleRemoveAllClick}
         >
-          <span style={{ color: '#ef4444', fontSize: '13px', fontWeight: '700' }}>Remove All Games</span>
+          <span style={{ color: 'var(--danger)', fontSize: '13px', fontWeight: '700' }}>Remove All Games</span>
+      </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderImportTab = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Behavior Section */}
       <div>
-        <h4 style={{ fontSize: '12px', fontWeight: '700', color: '#8e8e93', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
+        <h4 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--on-surface-label)', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
           Behavior
         </h4>
-        <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+        <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid var(--outline)', overflow: 'hidden' }}>
           {/* Row 1: Import Automatically */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Import Games Automatically</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--outline)' }}>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Import Games Automatically</span>
             <GtkSwitch active={!!settings.auto_import} onChange={() => updateSettings({ auto_import: !settings.auto_import })} accentColor={accentHex} />
           </div>
           {/* Row 2: Remove Uninstalled */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>Remove Uninstalled Games</span>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>Remove Uninstalled Games</span>
             <GtkSwitch active={!!settings.remove_uninstalled} onChange={() => updateSettings({ remove_uninstalled: !settings.remove_uninstalled })} accentColor={accentHex} />
           </div>
         </div>
@@ -184,10 +301,10 @@ export const PreferencesModal = ({
 
       {/* Sources Section */}
       <div>
-        <h4 style={{ fontSize: '12px', fontWeight: '700', color: '#8e8e93', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
+        <h4 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--on-surface-label)', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Outfit', sans-serif" }}>
           Sources
         </h4>
-        <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+        <div style={{ backgroundColor: 'var(--bg-deep, rgba(8, 7, 13, 0.4))', borderRadius: '10px', border: '1px solid var(--outline)', overflow: 'hidden' }}>
           {[
             { label: 'Amazon Games', val: !!settings.scan_amazon, key: 'scan_amazon', source: 'amazon' },
             { label: 'Battle.net', val: !!settings.scan_bnet, key: 'scan_bnet', source: 'battlenet' },
@@ -205,12 +322,12 @@ export const PreferencesModal = ({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 14px',
-                borderBottom: idx === arr.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.04)',
+                borderBottom: idx === arr.length - 1 ? 'none' : '1px solid var(--outline)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <LauncherIcon source={item.source} size={16} color={accentHex ? `#${accentHex}` : 'var(--accent)'} />
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>{item.label}</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>{item.label}</span>
               </div>
               <GtkSwitch active={item.val} onChange={() => updateSettings({ [item.key]: !item.val })} accentColor={accentHex} />
             </div>
@@ -254,7 +371,7 @@ export const PreferencesModal = ({
           background: 'var(--bg-mid, rgba(15, 12, 28, 0.95))',
           border: '1px solid var(--accent-border, rgba(139, 92, 246, 0.22))',
           borderRadius: '16px',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)',
+          boxShadow: 'var(--shadow-xl)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -318,8 +435,8 @@ export const PreferencesModal = ({
                   }}
                   className={isSelected ? '' : 'gtk-tab-hover'}
                 >
-                  <TabIcon size={14} color="#ffffff" strokeWidth={2.5} />
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>{tab.label}</span>
+                  <TabIcon size={14} color="var(--on-surface)" strokeWidth={2.5} />
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--on-surface)' }}>{tab.label}</span>
                 </div>
               )
             })}
@@ -331,7 +448,7 @@ export const PreferencesModal = ({
               width: '30px',
               height: '30px',
               borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.06)',
+              backgroundColor: 'var(--surface-elevated)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -365,7 +482,7 @@ export const PreferencesModal = ({
                 position: 'absolute',
                 bottom: '20px',
                 left: '50%',
-                backgroundColor: '#0f0e16',
+                backgroundColor: 'var(--modal-bg)',
                 border: modalToast.type === 'error' ? '1px solid rgba(248, 113, 113, 0.18)' : modalToast.type === 'success' ? '1px solid rgba(74, 222, 128, 0.18)' : '1px solid rgba(139, 92, 246, 0.22)',
                 boxShadow: '0 20px 30px -5px rgba(0,0,0,0.7), 0 0 30px rgba(139, 92, 246, 0.08)',
                 borderRadius: '12px',
@@ -381,7 +498,7 @@ export const PreferencesModal = ({
               {modalToast.type === 'success' ? <CheckCircle2 size={18} color="#4ade80" />
                 : modalToast.type === 'error' ? <AlertCircle size={18} color="#f87171" />
                 : <Info size={18} color={`#${accentHex}`} />}
-              <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>{modalToast.message}</span>
+              <span style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--on-surface)', fontFamily: "'Inter', sans-serif" }}>{modalToast.message}</span>
               {modalToast.showUndo && (
                 <button
                   type="button"
@@ -390,11 +507,11 @@ export const PreferencesModal = ({
                     setModalToast(null)
                   }}
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--active-bg)',
+                    border: '1px solid var(--outline-strong)',
                     borderRadius: '6px',
                     padding: '4px 10px',
-                    color: '#f8fafc',
+                    color: 'var(--on-surface)',
                     fontSize: '11.5px',
                     fontWeight: '700',
                     cursor: 'pointer',

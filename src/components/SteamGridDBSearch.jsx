@@ -67,7 +67,7 @@ const SteamGridDBSearch = ({
                 Grids for: <strong>{selectedSgdbGame.name}</strong>
               </span>
               <span
-                style={{ fontSize: '11px', color: '#8b5cf6', cursor: 'pointer' }}
+                style={{ fontSize: '11px', color: 'var(--accent, #8b5cf6)', cursor: 'pointer' }}
                 onClick={() => setSelectedSgdbGame(null)}
               >
                 Change
@@ -76,8 +76,8 @@ const SteamGridDBSearch = ({
 
             {sgdbCoversLoading ? (
               <div style={styles.coversLoader}>
-                <Loader2 size={24} color="#8b5cf6" style={{ animation: 'spin 1s linear infinite' }} />
-                <span style={{ fontSize: '12.5px', color: '#475569' }}>Fetching artworks...</span>
+                <Loader2 size={24} color="var(--accent, #8b5cf6)" style={{ animation: 'spin 1s linear infinite' }} />
+                <span style={{ fontSize: '12.5px', color: 'var(--on-surface-faint)' }}>Fetching artworks...</span>
               </div>
             ) : (
               <div style={styles.coversGrid}>
@@ -114,7 +114,7 @@ const SteamGridDBSearch = ({
         {sgdbGames.length === 0 && !selectedSgdbGame && !sgdbSearching && (
           <div style={styles.sgdbEmpty}>
             <AlertCircle size={24} color="#334155" style={{ marginBottom: '8px' }} />
-            <span style={{ fontSize: '13px', color: '#475569', textAlign: 'center' }}>
+            <span style={{ fontSize: '13px', color: 'var(--on-surface-faint)', textAlign: 'center' }}>
               Search above to find and download cover artwork from SteamGridDB.
             </span>
           </div>

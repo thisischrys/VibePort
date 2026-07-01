@@ -29,9 +29,9 @@ export class ErrorBoundary extends React.Component {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#0c0b14',
+            backgroundColor: 'var(--surface-deep)',
             fontFamily: "'Inter', sans-serif",
-            color: '#f1f5f9',
+            color: 'var(--on-surface)',
             padding: '24px',
             boxSizing: 'border-box',
           }}
@@ -84,7 +84,7 @@ export class ErrorBoundary extends React.Component {
             <p
               style={{
                 fontSize: '14px',
-                color: '#94a3b8',
+                color: 'var(--on-surface-muted)',
                 margin: '0 0 24px 0',
                 lineHeight: '1.5',
               }}
@@ -124,7 +124,7 @@ export class ErrorBoundary extends React.Component {
                   textAlign: 'left',
                   backgroundColor: 'rgba(0, 0, 0, 0.25)',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--glass-border)',
                   padding: '12px',
                   boxSizing: 'border-box',
                 }}
@@ -133,7 +133,7 @@ export class ErrorBoundary extends React.Component {
                   style={{
                     fontSize: '12px',
                     fontWeight: '600',
-                    color: '#94a3b8',
+                    color: 'var(--on-surface-muted)',
                     cursor: 'pointer',
                     userSelect: 'none',
                     outline: 'none',

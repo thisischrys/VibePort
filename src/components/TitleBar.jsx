@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { styles } from '../theme/styles.js'
 import { IpcManager } from '../shared/IpcManager.js'
+import { LauncherIcon } from './LauncherIcon.jsx'
 
 // Shaded sidebar toggle icon reminiscent of the app window
 const Sidebar = ({ size = 18, style = {} }) => (
@@ -62,6 +63,7 @@ export const TitleBar = ({
   viewState,
   closeDetailsView,
   selectedGameName,
+  detailsGradient,
   searchTerm,
   setSearchTerm,
   selectedSource,
@@ -147,7 +149,7 @@ export const TitleBar = ({
               cx="9"
               cy="9"
               r="7"
-              stroke="rgba(255, 255, 255, 0.15)"
+              stroke="var(--outline-strong)"
               strokeWidth="2"
               fill="transparent"
             />
@@ -189,7 +191,7 @@ export const TitleBar = ({
                 className="gtk-menu-item"
                 style={{
                   ...styles.popoverItem,
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  backgroundColor: 'var(--surface-elevated)',
                   color: '#ffffff'
                 }}
                 onClick={(e) => {
@@ -240,7 +242,7 @@ export const TitleBar = ({
         className="header-action"
         style={{
           ...styles.actionIconContainer,
-          backgroundColor: showSearch ? 'rgba(255,255,255,0.08)' : 'transparent',
+          backgroundColor: showSearch ? 'var(--active-bg)' : 'transparent',
           borderColor: 'transparent',
           borderRadius: '8px',
           transition: 'all 0.15s ease'
@@ -256,7 +258,7 @@ export const TitleBar = ({
         }}
         title="Search"
       >
-        <Search size={18} style={{ color: showSearch ? '#ffffff' : '#cbd5e1' }} />
+        <Search size={18} style={{ color: showSearch ? '#ffffff' : 'var(--on-surface-secondary)' }} />
       </div>
 
       {/* Main Menu Button */}
@@ -301,7 +303,7 @@ export const TitleBar = ({
                     className="gtk-menu-item"
                     style={{
                       ...styles.popoverItem,
-                      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                      backgroundColor: 'var(--surface-elevated)',
                       color: '#ffffff'
                     }}
                     onClick={(e) => {
@@ -310,7 +312,7 @@ export const TitleBar = ({
                     }}
                   >
                     <span>Sort</span>
-                    <ChevronRight size={14} color="#8e8e93" />
+                    <ChevronRight size={14} color="var(--on-surface-label)" />
                   </div>
                   <div
                     className="gtk-menu-item"
@@ -369,7 +371,7 @@ export const TitleBar = ({
                       display: 'flex',
                       alignItems: 'center',
                       padding: '8px 12px',
-                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      borderBottom: '1px solid var(--toast-border)',
                       marginBottom: '6px',
                       cursor: 'pointer',
                       borderRadius: '8px',
@@ -394,7 +396,7 @@ export const TitleBar = ({
                           ...styles.popoverItem,
                           justifyContent: 'flex-start',
                           gap: '10px',
-                          color: isSelected ? `#${accentHex}` : '#cbd5e1'
+                          color: isSelected ? `#${accentHex}` : 'var(--on-surface-secondary)'
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -445,7 +447,7 @@ export const TitleBar = ({
             width: '26px',
             height: '26px',
             borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.06)',
+            backgroundColor: 'var(--surface-elevated)',
             border: 'none',
             cursor: 'pointer',
             display: 'flex',
@@ -469,7 +471,7 @@ export const TitleBar = ({
             width: '26px',
             height: '26px',
             borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.06)',
+            backgroundColor: 'var(--surface-elevated)',
             border: 'none',
             cursor: 'pointer',
             display: 'flex',
@@ -500,7 +502,7 @@ export const TitleBar = ({
             width: '26px',
             height: '26px',
             borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.06)',
+            backgroundColor: 'var(--surface-elevated)',
             border: 'none',
             cursor: 'pointer',
             display: 'flex',
@@ -528,7 +530,7 @@ export const TitleBar = ({
       ...styles.titlebar,
       WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag',
       backgroundColor: 'transparent',
-      background: 'transparent',
+      backgroundImage: 'none',
       borderBottom: 'none',
       backdropFilter: viewState === 'details' ? 'none' : (styles.titlebar?.backdropFilter || 'blur(24px)'),
       padding: 0,
@@ -541,7 +543,7 @@ export const TitleBar = ({
         alignItems: 'center', 
         width: (showSidebar && !showHidden && viewState !== 'details') ? '260px' : '52px',
         paddingLeft: (showSidebar && !showHidden && viewState !== 'details') ? '16px' : '7px',
-        borderRight: (showSidebar && !showHidden && viewState !== 'details') ? '1px solid rgba(255, 255, 255, 0.04)' : 'none',
+        borderRight: (showSidebar && !showHidden && viewState !== 'details') ? '1px solid var(--outline)' : 'none',
         boxSizing: 'border-box',
         backgroundColor: (showSidebar && !showHidden && viewState !== 'details') 
           ? 'var(--sidebar-bg, #12111b)' 
@@ -618,7 +620,7 @@ export const TitleBar = ({
             fontFamily: "'Outfit', sans-serif",
             fontSize: '14.5px',
             fontWeight: '700',
-            color: '#f8fafc',
+            color: 'var(--on-surface)',
             letterSpacing: '-0.3px',
             WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag',
             opacity: (showSidebar && !showHidden && viewState !== 'details') ? 1 : 0,
@@ -655,14 +657,19 @@ export const TitleBar = ({
           fontFamily: "'Outfit', sans-serif",
           fontSize: '14.5px',
           fontWeight: '700',
-          color: '#cbd5e1',
+          color: 'var(--on-surface-secondary)',
           letterSpacing: '-0.3px',
           WebkitAppRegion: (showPlusDropdown || showMenu) ? 'no-drag' : 'drag'
         }}>
           {viewState === 'details' ? (
             <span>{selectedGameName}</span>
           ) : (
-            <span>{showHidden ? 'Hidden Games' : getSourceLabel(selectedSource)}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+              {!showHidden && selectedSource !== 'all' && (
+                <LauncherIcon source={selectedSource} style={{ width: '16px', height: '16px', opacity: 0.7 }} />
+              )}
+              {showHidden ? 'Hidden Games' : getSourceLabel(selectedSource)}
+            </span>
           )}
         </div>
 

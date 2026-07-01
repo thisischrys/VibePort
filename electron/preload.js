@@ -21,6 +21,13 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on(IPC_EVENTS.ACCENT_COLOR_CHANGED, listener)
     return () => ipcRenderer.removeListener(IPC_EVENTS.ACCENT_COLOR_CHANGED, listener)
   },
+  getNativeTheme: () => ipcRenderer.invoke(IPC_EVENTS.GET_NATIVE_THEME),
+  setThemeMode: (mode) => ipcRenderer.invoke(IPC_EVENTS.SET_THEME_MODE, mode),
+  onThemeChanged: (callback) => {
+    const listener = (event, isDark) => callback(isDark)
+    ipcRenderer.on(IPC_EVENTS.THEME_CHANGED, listener)
+    return () => ipcRenderer.removeListener(IPC_EVENTS.THEME_CHANGED, listener)
+  },
   selectFolder: () => ipcRenderer.invoke(IPC_EVENTS.SELECT_FOLDER),
   selectFile: () => ipcRenderer.invoke(IPC_EVENTS.SELECT_FILE),
   selectImage: () => ipcRenderer.invoke(IPC_EVENTS.SELECT_IMAGE),

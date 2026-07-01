@@ -54,9 +54,9 @@ const AddGameModal = ({
                 fontSize: '13.5px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                color: '#cbd5e1',
+                border: '1px solid var(--glass-border)',
+                backgroundColor: 'var(--surface-variant)',
+                color: 'var(--on-surface-secondary)',
                 zIndex: 10,
                 WebkitAppRegion: 'no-drag',
               }}
@@ -71,7 +71,7 @@ const AddGameModal = ({
               fontFamily: "'Outfit', sans-serif",
               fontSize: '15px',
               fontWeight: '700',
-              color: '#f8fafc',
+              color: 'var(--on-surface)',
               pointerEvents: 'none',
             }}>
               Add Game
@@ -85,8 +85,8 @@ const AddGameModal = ({
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: hasInputs ? 'pointer' : 'not-allowed',
-                backgroundColor: hasInputs ? `#${accentHex}` : 'rgba(255, 255, 255, 0.04)',
-                borderColor: hasInputs ? `#${accentHex}` : 'rgba(255, 255, 255, 0.05)',
+                backgroundColor: hasInputs ? `#${accentHex}` : 'var(--surface-variant)',
+                borderColor: hasInputs ? `#${accentHex}` : 'var(--glass-border)',
                 color: hasInputs ? '#ffffff' : 'rgba(255, 255, 255, 0.3)',
                 boxShadow: hasInputs ? `0 0 15px rgba(${hexToRgb(accentHex)}, 0.3)` : 'none',
                 opacity: hasInputs ? 1 : 0.4,
@@ -125,7 +125,7 @@ const AddGameModal = ({
                     fontSize: '13px',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                    border: '1px solid var(--outline-variant)'
                   }}
                   onClick={async () => {
                     try {

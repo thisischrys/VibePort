@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { IpcManager } from '../shared/IpcManager.js'
-import { DEFAULT_ACCENT, applyAccentPalette } from '../theme/accent.js'
+import { DEFAULT_ACCENT, applyAccentPalette, getDefaultAccent } from '../theme/accent.js'
 
 export function useGames() {
   const [games, setGames] = useState([])
@@ -31,13 +31,17 @@ export function useGames() {
     show_sidebar: true
   })
 
+  // Theme mode
+  const [themeMode, setThemeModeState] = useState('system') // 'system' | 'light' | 'dark'
+  const [isDark, setIsDark] = useState(true)
+
   // Accent color Hex
   const [accentHex, setAccentHex] = useState(() => {
     let initialColor = DEFAULT_ACCENT
     const syncColor = IpcManager.getAccentColorSync()
     if (syncColor) initialColor = syncColor
     const clean = initialColor.replace('#', '')
-    applyAccentPalette(clean)
+    applyAccentPalette(clean, true) // default to dark on initial render
     return clean
   })
 
@@ -135,9 +139,21 @@ export function useGames() {
         if (data.sort_by !== undefined) setSortByState(data.sort_by)
         if (data.show_hidden !== undefined) setShowHiddenState(data.show_hidden)
         if (data.show_sidebar !== undefined) setShowSidebarState(data.show_sidebar)
-        const clean = (data.use_windows_accent ? (accentHex || DEFAULT_ACCENT) : DEFAULT_ACCENT).replace('#', '')
-        setAccentHex(clean)
-        applyAccentPalette(clean)
+        if (data.theme_mode) setThemeModeState(data.theme_mode)
+
+        // Get OS theme state and apply
+        IpcManager.getNativeTheme().then(osIsDark => {
+          const resolvedDark = data.theme_mode === 'light' ? false :
+                               data.theme_mode === 'dark' ? true : osIsDark
+          setIsDark(resolvedDark)
+          document.documentElement.setAttribute('data-theme', resolvedDark ? 'dark' : 'light')
+          const clean = (data.use_windows_accent 
+            ? (accentHex || getDefaultAccent(resolvedDark)) 
+            : (data.custom_accent_color || getDefaultAccent(resolvedDark))
+          ).replace('#', '')
+          setAccentHex(clean)
+          applyAccentPalette(clean, resolvedDark)
+        }).catch(console.error)
       }
     }).catch(console.error)
   }, [])
@@ -147,17 +163,44 @@ export function useGames() {
     try {
       const merged = await IpcManager.saveSettings(newSettings)
       setSettings(merged)
+
+      // Handle theme mode change
+      if (newSettings.theme_mode !== undefined) {
+        setThemeModeState(newSettings.theme_mode)
+        const osIsDark = await IpcManager.setThemeMode(newSettings.theme_mode)
+        const resolvedDark = newSettings.theme_mode === 'light' ? false :
+                             newSettings.theme_mode === 'dark' ? true : osIsDark
+        setIsDark(resolvedDark)
+        document.documentElement.setAttribute('data-theme', resolvedDark ? 'dark' : 'light')
+        // Re-apply accent for new mode
+        const currentAccent = merged.use_windows_accent 
+          ? (accentHex || getDefaultAccent(resolvedDark)) 
+          : (merged.custom_accent_color || getDefaultAccent(resolvedDark))
+        const clean = currentAccent.replace('#', '')
+        setAccentHex(clean)
+        applyAccentPalette(clean, resolvedDark)
+      }
+
       if (newSettings.use_windows_accent !== undefined) {
         const syncColor = IpcManager.getAccentColorSync()
-        const clean = (newSettings.use_windows_accent ? (syncColor || DEFAULT_ACCENT) : DEFAULT_ACCENT).replace('#', '')
+        const clean = (newSettings.use_windows_accent 
+          ? (syncColor || getDefaultAccent(isDark)) 
+          : (merged.custom_accent_color || getDefaultAccent(isDark))
+        ).replace('#', '')
         setAccentHex(clean)
-        applyAccentPalette(clean)
+        applyAccentPalette(clean, isDark)
+      }
+
+      if (newSettings.custom_accent_color !== undefined) {
+        const clean = newSettings.custom_accent_color.replace('#', '')
+        setAccentHex(clean)
+        applyAccentPalette(clean, isDark)
       }
       return merged
     } catch (e) {
       console.error('Failed to update settings:', e)
     }
-  }, [accentHex])
+  }, [accentHex, isDark])
 
   const setSortBy = useCallback((val) => {
     setSortByState(val)
@@ -185,14 +228,32 @@ export function useGames() {
   useEffect(() => {
     const applyColor = (hex) => {
       if (settings.use_windows_accent) {
-        const clean = (hex || DEFAULT_ACCENT).replace('#', '')
+        const clean = (hex || getDefaultAccent(isDark)).replace('#', '')
         setAccentHex(clean)
-        applyAccentPalette(clean)
+        applyAccentPalette(clean, isDark)
       }
     }
     const unsub = IpcManager.onAccentColorChanged(applyColor)
     return () => { if (unsub) unsub() }
-  }, [settings.use_windows_accent])
+  }, [settings.use_windows_accent, isDark])
+
+  // OS theme change listener (fires when system switches light/dark)
+  useEffect(() => {
+    const handleThemeChange = (osIsDark) => {
+      if (themeMode === 'system') {
+        setIsDark(osIsDark)
+        document.documentElement.setAttribute('data-theme', osIsDark ? 'dark' : 'light')
+        const accent = settings.use_windows_accent 
+          ? accentHex 
+          : (settings.custom_accent_color || getDefaultAccent(osIsDark))
+        const clean = accent.replace('#', '')
+        setAccentHex(clean)
+        applyAccentPalette(clean, osIsDark)
+      }
+    }
+    const unsub = IpcManager.onThemeChanged(handleThemeChange)
+    return () => { if (unsub) unsub() }
+  }, [themeMode, settings.use_windows_accent, accentHex, settings.custom_accent_color])
 
   // Shortcuts status
   useEffect(() => {
@@ -231,7 +292,9 @@ export function useGames() {
       return
     }
 
-    const defaultGrad = `linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, rgba(8, 7, 13, 0.9) 100%), linear-gradient(135deg, var(--accent-bg-faint, #1e092b) 0%, var(--bg-deep, #08070d) 100%)`
+    const defaultGrad = isDark
+      ? `linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, rgba(8, 7, 13, 0.7) 100%), linear-gradient(135deg, var(--accent-bg-faint, #1e092b) 0%, var(--bg-deep, #08070d) 100%)`
+      : `linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 0%, rgba(250, 250, 250, 0.8) 100%), linear-gradient(135deg, var(--accent-bg-faint, #f0e8f4) 0%, var(--bg-deep, #fafafa) 100%)`
     setDetailsGradient(defaultGrad)
 
     if (!selectedGame.coverUrl) {
@@ -239,47 +302,70 @@ export function useGames() {
     }
 
     let active = true
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      if (!active) return
-      try {
-        const canvas = document.createElement('canvas')
-        canvas.width = 4
-        canvas.height = 6
-        const ctx = canvas.getContext('2d')
-        if (!ctx) throw new Error('Could not get canvas context')
-        ctx.drawImage(img, 0, 0, 4, 6)
-        const data = ctx.getImageData(0, 0, 4, 6).data
-        
-        const getRowAverage = (rowY) => {
-          let rSum = 0, gSum = 0, bSum = 0
-          const width = 4
-          for (let x = 0; x < width; x++) {
-            const idx = (rowY * width + x) * 4
-            rSum += data[idx]
-            gSum += data[idx + 1]
-            bSum += data[idx + 2]
+    let objectUrl = null
+
+    fetch(selectedGame.coverUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        if (!active) return
+        objectUrl = URL.createObjectURL(blob)
+        const img = new Image()
+        img.onload = () => {
+          if (!active) {
+            URL.revokeObjectURL(objectUrl)
+            return
           }
-          return `rgb(${Math.round(rSum / width)}, ${Math.round(gSum / width)}, ${Math.round(bSum / width)})`
+          try {
+            const canvas = document.createElement('canvas')
+            canvas.width = 4
+            canvas.height = 6
+            const ctx = canvas.getContext('2d')
+            if (!ctx) throw new Error('Could not get canvas context')
+            ctx.drawImage(img, 0, 0, 4, 6)
+            const data = ctx.getImageData(0, 0, 4, 6).data
+            
+            const getRowAverage = (rowY) => {
+              let rSum = 0, gSum = 0, bSum = 0
+              const width = 4
+              for (let x = 0; x < width; x++) {
+                const idx = (rowY * width + x) * 4
+                rSum += data[idx]
+                gSum += data[idx + 1]
+                bSum += data[idx + 2]
+              }
+              return `rgb(${Math.round(rSum / width)}, ${Math.round(gSum / width)}, ${Math.round(bSum / width)})`
+            }
+            
+            const topColor = getRowAverage(0)
+            const midColor = getRowAverage(3)
+            const bottomColor = getRowAverage(5)
+            
+            const gradient = isDark
+              ? `linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, rgba(8, 7, 13, 0.7) 100%), linear-gradient(135deg, ${topColor} 0%, ${midColor} 50%, ${bottomColor} 100%)`
+              : `linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 0%, rgba(250, 250, 250, 0.8) 100%), linear-gradient(135deg, ${topColor} 0%, ${midColor} 50%, ${bottomColor} 100%)`
+            setDetailsGradient(gradient)
+          } catch (e) {
+            console.warn('Failed to extract cover colors for gradient:', e)
+          } finally {
+            URL.revokeObjectURL(objectUrl)
+          }
         }
-        
-        const topColor = getRowAverage(0)
-        const midColor = getRowAverage(3)
-        const bottomColor = getRowAverage(5)
-        
-        const gradient = `linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, rgba(8, 7, 13, 0.9) 100%), linear-gradient(135deg, ${topColor} 0%, ${midColor} 50%, ${bottomColor} 100%)`
-        setDetailsGradient(gradient)
-      } catch (e) {
-        console.warn('Failed to extract cover colors for gradient:', e)
-      }
-    }
-    img.src = selectedGame.coverUrl
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl)
+        }
+        img.src = objectUrl
+      })
+      .catch(err => {
+        console.warn('Failed to fetch cover blob for color extraction:', err)
+      })
 
     return () => {
       active = false
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
     }
-  }, [selectedGame])
+  }, [selectedGame, isDark])
 
   // Actions / Handlers
 
@@ -670,6 +756,8 @@ export function useGames() {
     failedCovers,
     settings, updateSettings,
     accentHex,
+    themeMode, setThemeMode: (mode) => updateSettings({ theme_mode: mode }),
+    isDark,
     activeToast, triggerToast, dismissToast,
     showAddModal, setShowAddModal,
     showEditModal, setShowEditModal,

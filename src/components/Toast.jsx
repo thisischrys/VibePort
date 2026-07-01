@@ -43,11 +43,11 @@ export const Toast = React.memo(({ activeToast, accentHex, onClose }) => {
             onClose()
           }}
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'var(--active-bg)',
+            border: '1px solid var(--menu-border)',
             borderRadius: '6px',
             padding: '4px 10px',
-            color: '#f8fafc',
+            color: 'var(--on-surface)',
             fontSize: '11.5px',
             fontWeight: '700',
             cursor: 'pointer',

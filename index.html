@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: media: https:; connect-src 'self' https://www.steamgriddb.com">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: media: https: blob:; connect-src 'self' https://www.steamgriddb.com media: data:">
+    <link rel="stylesheet" href="/src/theme/theme-tokens.css">
     <title>VibePort</title>
     <script>
       if (window.location.hash === '#shortcuts') {
@@ -100,8 +101,8 @@
       body {
         margin: 0;
         padding: 0;
-        background-color: #0c0b14;
-        color: #f1f5f9;
+        background-color: var(--surface-deep, #08070d);
+        color: var(--on-surface, #f8fafc);
         font-family: 'Inter', sans-serif;
         overflow-x: hidden;
       }
@@ -111,15 +112,15 @@
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #0c0b14;
+        background: var(--surface-deep, #08070d);
       }
       ::-webkit-scrollbar-thumb {
-        background: #222035;
+        background: var(--scrollbar-thumb, rgba(255,255,255,0.06));
         border-radius: 99px;
-        border: 2px solid #0c0b14;
+        border: 2px solid var(--surface-deep, #08070d);
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #3e3b5e;
+        background: var(--accent-glow-mid, #3e3b5e);
       }
     </style>
   </head>

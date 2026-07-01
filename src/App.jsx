@@ -33,6 +33,7 @@ const App = () => {
     settings,
     updateSettings,
     accentHex,
+    themeMode, setThemeMode, isDark,
     activeToast, setActiveToast,
     showAddModal, setShowAddModal,
     showEditModal, setShowEditModal,
@@ -331,6 +332,7 @@ const App = () => {
         viewState={viewState}
         closeDetailsView={closeDetailsView}
         selectedGameName={selectedGame?.name}
+        detailsGradient={detailsGradient}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         selectedSource={selectedSource}
@@ -434,6 +436,7 @@ const App = () => {
                     activeMenuGameId={activeMenuGameId}
                     setActiveMenuGameId={setActiveMenuGameId}
                     coverLaunchesGame={settings.cover_launches_game}
+                    isCoverDownloading={isCoverDownloading}
                     emptyIcon={CartridgeIcon}
                     emptyTitle={games.length === 0 ? 'No Games' : 'No games match your criteria'}
                     emptySub={games.length === 0 ? 'Use the + button to add games' : 'Double check your search text or switch libraries.'}
@@ -478,6 +481,7 @@ const App = () => {
                     activeMenuGameId={activeMenuGameId}
                     setActiveMenuGameId={setActiveMenuGameId}
                     coverLaunchesGame={settings.cover_launches_game}
+                    isCoverDownloading={isCoverDownloading}
                     emptyIcon={EyeOff}
                     emptyTitle="No Hidden Games"
                     emptySub="Games you hide will appear here"
@@ -498,7 +502,8 @@ const App = () => {
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          background: detailsGradient || 'var(--bg-deep, #08070d)',
+          backgroundColor: 'var(--bg-deep, #08070d)',
+          backgroundImage: detailsGradient || 'none',
           transform: viewState === 'details' ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
           pointerEvents: viewState === 'details' ? 'auto' : 'none',
@@ -739,6 +744,9 @@ const App = () => {
             initialTab={preferencesInitialTab}
             settings={settings}
             updateSettings={updateSettings}
+            themeMode={themeMode}
+            setThemeMode={setThemeMode}
+            isDark={isDark}
           />
         )}
         {showShortcutsModal && (
