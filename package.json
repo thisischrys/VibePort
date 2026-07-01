@@ -1,6 +1,6 @@
 {
   "name": "vibeport",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Native Windows Game Launcher",
   "main": "dist-electron/main.js",
   "type": "module",

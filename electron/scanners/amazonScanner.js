@@ -8,15 +8,15 @@ import { getSettingsData } from '../lib/settings.js'
 
 const execAsync = promisify(exec)
 
-const AMAZON_POWERSHELL_SCRIPT = `
+const AMAZON_POWERSHELL_SCRIPT = String.raw`
 $ErrorActionPreference = 'SilentlyContinue'
 $games = @()
-$paths = @("HKLM:SOFTWAREMicrosoftWindowsCurrentVersionUninstall*", "HKLM:SOFTWAREWOW6432NodeMicrosoftWindowsCurrentVersionUninstall*", "HKCU:SoftwareMicrosoftWindowsCurrentVersionUninstall*")
+$paths = @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*')
 foreach ($p in $paths) {
     $keys = Get-ItemProperty $p -ErrorAction SilentlyContinue
     foreach ($key in $keys) {
-        if ($key.UninstallString -match "Amazon Games.exe") {
-            if ($key.PSChildName -ne "Amazon Games") {
+        if ($key.UninstallString -match 'Amazon Games.exe') {
+            if ($key.PSChildName -ne 'Amazon Games') {
                 $games += [PSCustomObject]@{
                     Name = $key.DisplayName
                     Id = $key.PSChildName
@@ -32,7 +32,7 @@ export async function scanAmazonLibrary() {
   console.log('[AUTO-SCAN] Scanning Amazon Games library...')
 
   try {
-    const { stdout } = await execAsync(`powershell -NoProfile -Command "${AMAZON_POWERSHELL_SCRIPT.replace(/"/g, '"').replace(/\n/g, ' ')}"`)
+    const { stdout } = await execAsync(`powershell -NoProfile -Command "${AMAZON_POWERSHELL_SCRIPT.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`)
     
     if (!stdout.trim()) {
       return
