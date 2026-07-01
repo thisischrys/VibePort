@@ -237,29 +237,6 @@ app.whenReady().then(() => {
   createWindow()
 
   // Check for What's New
-  const settingsData = getSettingsData()
-  const currentVersion = app.getVersion()
-  const lastVersion = settingsData.last_version_run || '0.0.0'
-  
-  if (currentVersion !== lastVersion) {
-    const isNewer = (a, b) => {
-      const pa = a.split('.').map(Number)
-      const pb = b.split('.').map(Number)
-      for (let i = 0; i < 3; i++) {
-        if (pa[i] > (pb[i] || 0)) return true
-        if (pa[i] < (pb[i] || 0)) return false
-      }
-      return false
-    }
-    
-    if (isNewer(currentVersion, lastVersion) || lastVersion === '0.0.0') {
-      saveSettingsData({ last_version_run: currentVersion })
-      setTimeout(() => {
-        if (state.mainWindow) state.mainWindow.webContents.send(IPC_EVENTS.SHOW_WHATS_NEW, currentVersion)
-      }, 2000)
-    }
-  }
-
   // Set up IPC & Auto Updater
   setupIpcHandlers(runAutoScan)
   setupAutoUpdater(runAutoScan)

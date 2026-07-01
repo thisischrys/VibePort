@@ -112,12 +112,6 @@ export class IpcManager {
     return window.api.onShowToast(callback);
   }
 
-  static onShowWhatsNew(callback) {
-    if (!window.api?.onShowWhatsNew) {
-      return () => {};
-    }
-    return window.api.onShowWhatsNew(callback);
-  }
 
   static minimizeWindow() {
     return window.api?.minimizeWindow();

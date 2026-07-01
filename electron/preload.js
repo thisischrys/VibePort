@@ -43,11 +43,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on(IPC_EVENTS.SHOW_TOAST, listener)
     return () => ipcRenderer.removeListener(IPC_EVENTS.SHOW_TOAST, listener)
   },
-  onShowWhatsNew: (callback) => {
-    const listener = (event, version) => callback(version)
-    ipcRenderer.on(IPC_EVENTS.SHOW_WHATS_NEW, listener)
-    return () => ipcRenderer.removeListener(IPC_EVENTS.SHOW_WHATS_NEW, listener)
-  },
+
   minimizeWindow: () => ipcRenderer.send(IPC_EVENTS.WINDOW_MINIMIZE),
   maximizeWindow: () => ipcRenderer.send(IPC_EVENTS.WINDOW_MAXIMIZE),
   closeWindow: () => ipcRenderer.send(IPC_EVENTS.WINDOW_CLOSE),

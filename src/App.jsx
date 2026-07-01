@@ -8,7 +8,7 @@ import EditGameModal from './components/modals/EditGameModal.jsx'
 import AboutModal from './components/modals/AboutModal.jsx'
 import { PreferencesModal } from './components/modals/PreferencesModal.jsx'
 import { ShortcutsModal } from './components/modals/ShortcutsModal.jsx'
-import { WhatsNewModal } from './components/WhatsNewModal.jsx'
+
 import packageJson from '../package.json'
 import { TitleBar } from './components/TitleBar.jsx'
 import { IpcManager } from './shared/IpcManager.js'
@@ -42,8 +42,7 @@ const App = () => {
     preferencesInitialTab,
     showShortcutsModal, setShowShortcutsModal,
     isStandaloneShortcutsOpen,
-    showWhatsNewModal, setShowWhatsNewModal,
-    whatsNewVersion,
+
     isScanning,
     scanMode,
     isCoverDownloading,
@@ -754,13 +753,7 @@ const App = () => {
             onClose={() => setShowShortcutsModal(false)}
           />
         )}
-        {showWhatsNewModal && (
-          <WhatsNewModal
-            isOpen={showWhatsNewModal}
-            onClose={() => setShowWhatsNewModal(false)}
-            version={whatsNewVersion}
-          />
-        )}
+
         {isScanning && (
           <ScanOverlay
             isScanning={isScanning}

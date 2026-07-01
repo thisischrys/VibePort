@@ -72,9 +72,6 @@ export function useGames() {
   const [preferencesInitialTab, setPreferencesInitialTab] = useState('general')
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [isStandaloneShortcutsOpen, setIsStandaloneShortcutsOpen] = useState(false)
-  const [showWhatsNewModal, setShowWhatsNewModal] = useState(false)
-  const [whatsNewVersion, setWhatsNewVersion] = useState('')
-
   // Scanning progress
   const [isScanning, setIsScanning] = useState(false)
   const [scanMode, setScanMode] = useState('import') // 'import' | 'folder'
@@ -268,10 +265,6 @@ export function useGames() {
     const subs = [
       IpcManager.onGamesUpdated(fetchGames),
       IpcManager.onShowToast((d) => { if (d?.message) triggerToast(d.message, d.type) }),
-      IpcManager.onShowWhatsNew((version) => {
-        setWhatsNewVersion(version)
-        setShowWhatsNewModal(true)
-      }),
       IpcManager.onScanProgress((progress) => {
         setScanProgress(progress)
         if (progress.active !== undefined) setIsScanning(progress.active)
@@ -766,8 +759,6 @@ export function useGames() {
     preferencesInitialTab, setPreferencesInitialTab,
     showShortcutsModal, setShowShortcutsModal,
     isStandaloneShortcutsOpen,
-    showWhatsNewModal, setShowWhatsNewModal,
-    whatsNewVersion,
     isScanning,
     scanMode,
     isCoverDownloading,

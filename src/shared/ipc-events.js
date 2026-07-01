@@ -52,6 +52,5 @@ export const IPC_EVENTS = {
   
   // App
   SHOW_TOAST: 'show-toast',
-  OPEN_EXTERNAL_URL: 'open-external-url',
-  SHOW_WHATS_NEW: 'show-whats-new',
+  OPEN_EXTERNAL_URL: 'open-external-url'
 };
